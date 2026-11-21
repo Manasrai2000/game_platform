@@ -8,11 +8,17 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "tsx src/scripts/migrate.ts",
     "db:studio": "drizzle-kit studio",
     "db:seed:admin": "tsx src/scripts/seed-admin.ts"
   },
-  "keywords": ["lms", "clean-architecture", "drizzle", "mysql", "modular-monolith"],
+  "keywords": [
+    "lms",
+    "clean-architecture",
+    "drizzle",
+    "mysql",
+    "modular-monolith"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -24,14 +30,14 @@
     "express": "^5.0.1",
     "helmet": "^8.0.0",
     "mysql2": "^3.12.0",
-    "zod": "^3.24.2"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.8",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/node": "^22.13.4",
-    "drizzle-kit": "^0.30.4",
+    "drizzle-kit": "^0.31.11",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3"
   }
