@@ -3,12 +3,12 @@ import crypto from "crypto";
 import { env } from "../config/env";
 
 /**
- * Computes an HMAC peppered secret before hashing with Argon2id.
- * This guarantees that even if the database is leaked, passwords cannot be cracked offline
- * without the server's environment pepper.
+ * Computes an HMAC peppered secret string before hashing with Argon2id.
+ * Using hex encoding ensures that the input is always a valid UTF-8 string,
+ * avoiding Rust/native binding "invalid utf-8 sequence" errors on raw byte digests.
  */
-function applyPepper(password: string): Buffer {
-  return crypto.createHmac("sha256", env.SERVER_PEPPER).update(password).digest();
+function applyPepper(password: string): string {
+  return crypto.createHmac("sha256", env.SERVER_PEPPER).update(password).digest("hex");
 }
 
 /**

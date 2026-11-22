@@ -9,15 +9,20 @@ async function seedAdmin() {
 
   console.log(`Checking existing admin: ${adminEmail}...`);
 
+  const passwordHash = await hashPassword(adminPassword);
+
   const existing = await authRepository.findByEmail(adminEmail);
   if (existing) {
-    console.log(`ℹ️ Admin already exists with ID: ${existing.id}`);
+    console.log(`ℹ️ Admin already exists with ID: ${existing.id}. Updating password hash...`);
+    await authRepository.updateUserPassword(existing.id, passwordHash);
+    console.log(`✅ Admin password updated successfully!`);
+    console.log(`   Email: ${adminEmail}`);
+    console.log(`   Password: ${adminPassword}`);
     await pool.end();
     return;
   }
 
   console.log("Creating new Administrator account...");
-  const passwordHash = await hashPassword(adminPassword);
 
   const admin = await authRepository.createUser({
     fullName: adminFullName,
