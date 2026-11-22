@@ -25,8 +25,8 @@ const envSchema = z.object({
   COOKIE_SECRET: z.string().default("super_secret_cookie_signing_key_32_chars"),
   COOKIE_SECURE: z
     .string()
-    .transform((val) => val === "true")
-    .default("false"),
+    .default("false")
+    .transform((val) => val === "true"),
 });
 
 const parsed = envSchema.safeParse(process.env);

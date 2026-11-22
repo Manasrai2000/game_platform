@@ -1,0 +1,139 @@
+/**
+ * API Client for Modular Monolith Backend
+ * Configured with credentials: 'include' to handle HttpOnly cookies automatically.
+ */
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+
+export interface ApiUser {
+  id: number;
+  email: string;
+  fullName: string;
+  role: "STUDENT" | "ADMIN";
+  mobileNumber?: string;
+  classGrade?: string;
+  schoolName?: string;
+  isActive?: boolean;
+}
+
+export interface StudentListItem {
+  id: number;
+  fullName: string;
+  email: string;
+  mobileNumber: string;
+  classGrade: string;
+  schoolName: string;
+  isActive: boolean;
+  createdAt: string;
+  activeDeviceId: number | null;
+  activeDeviceLabel: string | null;
+  activeDeviceLastSeen: string | null;
+  activeDeviceBoundIp: string | null;
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
+  message?: string;
+}
+
+async function request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+  const url = `${API_BASE}${endpoint}`;
+  try {
+    const res = await fetch(url, {
+      ...options,
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+      },
+    });
+
+    const json = (await res.json()) as ApiResponse<T>;
+
+    if (!res.ok) {
+      return {
+        success: false,
+        error: json.error || {
+          code: "HTTP_" + res.status,
+          message: json.message || "An error occurred with your request",
+        },
+      };
+    }
+
+    return json;
+  } catch (err) {
+    return {
+      success: false,
+      error: {
+        code: "NETWORK_ERROR",
+        message:
+          "Unable to connect to the LMS server. Please ensure the backend is running.",
+      },
+    };
+  }
+}
+
+export const api = {
+  // Auth
+  register: (data: {
+    fullName: string;
+    email: string;
+    mobileNumber: string;
+    classGrade: string;
+    schoolName: string;
+    password: string;
+    deviceLabel: string;
+    clientPublicKeySpki?: string;
+  }) => request<{ user: ApiUser; deviceBound: boolean }>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify(data),
+  }),
+
+  login: (data: {
+    email: string;
+    password: string;
+    deviceLabel: string;
+    clientPublicKeySpki?: string;
+  }) => request<{ user: ApiUser; deviceBound: boolean }>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify(data),
+  }),
+
+  logout: () => request<{ message: string }>("/auth/logout", {
+    method: "POST",
+  }),
+
+  getMe: () => request<{ user: ApiUser }>("/auth/me", {
+    method: "GET",
+  }),
+
+  adminSetPassword: (targetUserId: number, newPassword: string) =>
+    request<{ message: string }>("/auth/admin/set-password", {
+      method: "POST",
+      body: JSON.stringify({ targetUserId, newPassword }),
+    }),
+
+  // Admin User Management
+  getStudents: (search = "", page = 1, limit = 50) =>
+    request<{ students: StudentListItem[]; page: number; limit: number }>(
+      `/users/students?search=${encodeURIComponent(search)}&page=${page}&limit=${limit}`,
+      { method: "GET" }
+    ),
+
+  toggleStudentStatus: (id: number) =>
+    request<{ isActive: boolean }>(`/users/students/${id}/status`, {
+      method: "PATCH",
+    }),
+
+  resetStudentDevice: (id: number, reason: string) =>
+    request<{ message: string }>(`/users/students/${id}/reset-device`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
+};
