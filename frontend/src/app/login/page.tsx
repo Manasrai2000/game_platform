@@ -44,9 +44,9 @@ export default function LoginPage() {
       }
 
       if (res.data?.user.role === "ADMIN") {
-        router.push("/admin");
+        window.location.href = "/admin";
       } else {
-        router.push("/dashboard");
+        window.location.href = "/dashboard";
       }
     } catch {
       setErrorMessage("An unexpected error occurred. Please check if backend is running.");

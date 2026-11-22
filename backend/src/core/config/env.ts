@@ -20,8 +20,8 @@ const envSchema = z.object({
   SERVER_PEPPER: z
     .string()
     .min(16, "SERVER_PEPPER must be at least 16 characters long"),
-  SESSION_COOKIE_NAME: z.string().default("__Host-sid"),
-  DEVICE_COOKIE_NAME: z.string().default("__Host-device_id"),
+  SESSION_COOKIE_NAME: z.string().default("lms_sid"),
+  DEVICE_COOKIE_NAME: z.string().default("lms_device_id"),
   COOKIE_SECRET: z.string().default("super_secret_cookie_signing_key_32_chars"),
   COOKIE_SECURE: z
     .string()

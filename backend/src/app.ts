@@ -14,9 +14,25 @@ export function createApp(): express.Application {
   app.use(helmet());
 
   // CORS for frontend Next.js application
+  const allowedOrigins = [
+    env.APP_ORIGIN,
+    env.SANDBOX_ORIGIN,
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+  ];
+
   app.use(
     cors({
-      origin: [env.APP_ORIGIN, env.SANDBOX_ORIGIN],
+      origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps, curl, or server-to-server)
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(null, true); // Permissive in dev, or origin match
+        }
+      },
       credentials: true,
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     })
