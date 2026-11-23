@@ -9,6 +9,8 @@ export const registerSchema = z.object({
     .max(15, "Mobile number too long"),
   classGrade: z.string().min(1, "Class/grade is required").max(50),
   schoolName: z.string().min(2, "School name is required").max(200),
+  city: z.string().min(1, "City is required").max(100),
+  state: z.string().min(1, "State is required").max(100),
   password: z.string().min(8, "Password must be at least 8 characters").max(100),
   deviceLabel: z.string().max(200).default("Desktop Browser"),
   clientPublicKeySpki: z.string().optional(),

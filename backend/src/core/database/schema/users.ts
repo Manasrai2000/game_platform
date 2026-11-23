@@ -22,6 +22,8 @@ export const users = mysqlTable(
     mobile_number: varchar("mobile_number", { length: 20 }).notNull(),
     class_grade: varchar("class_grade", { length: 50 }).notNull(),
     school_name: varchar("school_name", { length: 200 }).notNull(),
+    city: varchar("city", { length: 100 }).notNull().default(""),
+    state: varchar("state", { length: 100 }).notNull().default(""),
     role: mysqlEnum("role", ["STUDENT", "ADMIN"]).notNull().default("STUDENT"),
     is_active: boolean("is_active").notNull().default(true),
     email_verified_at: datetime("email_verified_at", { fsp: 3 }),

@@ -2,13 +2,11 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { getDeviceLabel, getOrCreateDevicePublicKey } from "@/lib/device-binding";
-import { ShieldAlert, Lock, Mail, ArrowRight, Laptop, CheckCircle2 } from "lucide-react";
+import { ShieldAlert, Lock, Mail, ArrowRight, Laptop, Gamepad2 } from "lucide-react";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -60,9 +58,9 @@ export default function LoginPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 mb-4">
-            <Lock className="w-7 h-7" />
+            <Gamepad2 className="w-7 h-7" />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Sign In to LMS</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Sign In to Education Game</h1>
           <p className="text-slate-400 text-sm mt-1">
             Access your courses from your authorized laptop
           </p>
@@ -79,7 +77,7 @@ export default function LoginPage() {
                 </p>
                 <p className="text-rose-300/80 text-xs mt-2 leading-relaxed">
                   This student account is securely locked to another laptop or browser. Please contact
-                  your school or platform administrator to request a device reset.
+                  your platform administrator to request a device reset.
                 </p>
               </div>
             </div>

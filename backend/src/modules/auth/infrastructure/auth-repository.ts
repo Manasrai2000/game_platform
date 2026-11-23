@@ -24,6 +24,8 @@ export class AuthRepository {
     mobileNumber: string;
     classGrade: string;
     schoolName: string;
+    city?: string;
+    state?: string;
     passwordHash: string;
     role?: "STUDENT" | "ADMIN";
   }): Promise<User> {
@@ -33,6 +35,8 @@ export class AuthRepository {
       mobile_number: data.mobileNumber.trim(),
       class_grade: data.classGrade.trim(),
       school_name: data.schoolName.trim(),
+      city: (data.city || "").trim(),
+      state: (data.state || "").trim(),
       password_hash: data.passwordHash,
       role: data.role || "STUDENT",
       is_active: true,

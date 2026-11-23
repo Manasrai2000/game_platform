@@ -19,6 +19,8 @@ export interface AuthSuccessResult {
     mobileNumber: string;
     classGrade: string;
     schoolName: string;
+    city: string;
+    state: string;
   };
   rawSessionToken: string;
   rawDeviceToken: string | null;
@@ -52,6 +54,8 @@ export class AuthUseCases {
       mobileNumber: input.mobileNumber,
       classGrade: input.classGrade,
       schoolName: input.schoolName,
+      city: input.city,
+      state: input.state,
       passwordHash,
       role: "STUDENT",
     });
@@ -91,6 +95,8 @@ export class AuthUseCases {
         mobileNumber: user.mobile_number,
         classGrade: user.class_grade,
         schoolName: user.school_name,
+        city: user.city,
+        state: user.state,
       },
       rawSessionToken,
       rawDeviceToken: deviceResult?.rawDeviceToken || null,
@@ -162,6 +168,8 @@ export class AuthUseCases {
         mobileNumber: user.mobile_number,
         classGrade: user.class_grade,
         schoolName: user.school_name,
+        city: user.city,
+        state: user.state,
       },
       rawSessionToken,
       rawDeviceToken: deviceResult?.rawDeviceToken || null,

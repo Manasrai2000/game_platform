@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Subscription LMS | Desktop Learning Platform",
-  description: "Secure, desktop-only learning management platform with single-device binding",
+  title: "Education Game | Desktop Learning Platform",
+  description: "Secure, desktop-only education game platform with single-device binding",
 };
 
 export default function RootLayout({

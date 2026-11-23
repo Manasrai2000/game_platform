@@ -1,34 +1,74 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import { api, ClassItem } from "@/lib/api";
 import { getDeviceLabel, getOrCreateDevicePublicKey } from "@/lib/device-binding";
-import { UserPlus, User, Mail, Phone, BookOpen, School, Lock, ArrowRight, Laptop, ShieldCheck } from "lucide-react";
+import {
+  UserPlus,
+  User,
+  Mail,
+  Phone,
+  BookOpen,
+  School,
+  MapPin,
+  Lock,
+  ArrowRight,
+  ShieldCheck,
+  Gamepad2,
+} from "lucide-react";
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [formData, setFormData] = useState({
     fullName: "",
     mobileNumber: "",
     classGrade: "",
     schoolName: "",
+    city: "",
+    state: "",
     email: "",
     password: "",
     confirmPassword: "",
   });
 
+  const [classesList, setClassesList] = useState<ClassItem[]>([]);
+  const [loadingClasses, setLoadingClasses] = useState(true);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+  useEffect(() => {
+    async function loadClasses() {
+      try {
+        const res = await api.getActiveClasses();
+        if (res.success && res.data?.classes) {
+          setClassesList(res.data.classes);
+          if (res.data.classes.length > 0) {
+            setFormData((prev) => ({ ...prev, classGrade: res.data!.classes[0].name }));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load classes:", err);
+      } finally {
+        setLoadingClasses(false);
+      }
+    }
+    loadClasses();
+  }, []);
+
+  function handleChange(
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   }
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     setErrorMessage(null);
+
+    if (!formData.classGrade) {
+      setErrorMessage("Please select your class");
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setErrorMessage("Passwords do not match");
@@ -51,6 +91,8 @@ export default function RegisterPage() {
         mobileNumber: formData.mobileNumber,
         classGrade: formData.classGrade,
         schoolName: formData.schoolName,
+        city: formData.city,
+        state: formData.state,
         email: formData.email,
         password: formData.password,
         deviceLabel,
@@ -64,7 +106,7 @@ export default function RegisterPage() {
       }
 
       // Redirect directly to dashboard upon successful registration and binding
-      router.push("/dashboard");
+      window.location.href = "/dashboard";
     } catch {
       setErrorMessage("An unexpected error occurred. Please ensure backend is running.");
       setLoading(false);
@@ -73,13 +115,15 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-slate-950">
-      <div className="w-full max-w-lg bg-slate-900/90 border border-slate-800 rounded-3xl p-8 shadow-2xl backdrop-blur-xl">
+      <div className="w-full max-w-xl bg-slate-900/90 border border-slate-800 rounded-3xl p-8 shadow-2xl backdrop-blur-xl">
         {/* Header */}
         <div className="text-center mb-6">
           <div className="inline-flex p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 mb-4">
-            <UserPlus className="w-7 h-7" />
+            <Gamepad2 className="w-7 h-7" />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Student Registration</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">
+            Education Game Registration
+          </h1>
           <p className="text-slate-400 text-sm mt-1">
             Create your account and bind this laptop as your learning device
           </p>
@@ -138,19 +182,33 @@ export default function RegisterPage() {
               </div>
             </div>
 
+            {/* Class Dropdown */}
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Class / Grade</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                Class / Grade
+              </label>
               <div className="relative">
-                <BookOpen className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
+                <BookOpen className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <select
                   name="classGrade"
                   required
                   value={formData.classGrade}
                   onChange={handleChange}
-                  placeholder="Class 10"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-800/80 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                />
+                  disabled={loadingClasses}
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-800/80 border border-slate-700/80 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 appearance-none cursor-pointer"
+                >
+                  {loadingClasses ? (
+                    <option value="">Loading classes...</option>
+                  ) : classesList.length === 0 ? (
+                    <option value="Class 10">Class 10 (Default)</option>
+                  ) : (
+                    classesList.map((c) => (
+                      <option key={c.id} value={c.name} className="bg-slate-900 text-white">
+                        {c.name}
+                      </option>
+                    ))
+                  )}
+                </select>
               </div>
             </div>
           </div>
@@ -168,6 +226,41 @@ export default function RegisterPage() {
                 placeholder="Delhi Public School"
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-800/80 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
               />
+            </div>
+          </div>
+
+          {/* City and State Fields directly after School Name */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">City</label>
+              <div className="relative">
+                <MapPin className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  name="city"
+                  required
+                  value={formData.city}
+                  onChange={handleChange}
+                  placeholder="New Delhi"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-800/80 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">State</label>
+              <div className="relative">
+                <MapPin className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  name="state"
+                  required
+                  value={formData.state}
+                  onChange={handleChange}
+                  placeholder="Delhi"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-800/80 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
             </div>
           </div>
 

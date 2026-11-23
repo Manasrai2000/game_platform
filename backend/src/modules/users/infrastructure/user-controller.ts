@@ -23,7 +23,9 @@ export class UserController {
               like(users.full_name, `%${search}%`),
               like(users.email, `%${search}%`),
               like(users.mobile_number, `%${search}%`),
-              like(users.school_name, `%${search}%`)
+              like(users.school_name, `%${search}%`),
+              like(users.city, `%${search}%`),
+              like(users.state, `%${search}%`)
             )
           )
         : eq(users.role, "STUDENT");
@@ -36,6 +38,8 @@ export class UserController {
           mobileNumber: users.mobile_number,
           classGrade: users.class_grade,
           schoolName: users.school_name,
+          city: users.city,
+          state: users.state,
           isActive: users.is_active,
           createdAt: users.created_at,
           activeDeviceId: user_devices.id,

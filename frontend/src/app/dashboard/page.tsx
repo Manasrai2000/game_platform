@@ -11,9 +11,10 @@ import {
   BookOpen,
   Phone,
   Mail,
+  MapPin,
   LogOut,
   Sparkles,
-  Layers,
+  Gamepad2,
 } from "lucide-react";
 
 export default function StudentDashboardPage() {
@@ -40,7 +41,7 @@ export default function StudentDashboardPage() {
 
   async function handleLogout() {
     await api.logout();
-    router.push("/login");
+    window.location.href = "/login";
   }
 
   if (loading) {
@@ -48,7 +49,7 @@ export default function StudentDashboardPage() {
       <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-400">
         <div className="flex items-center gap-3">
           <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-          <span>Loading student portal...</span>
+          <span>Loading Education Game portal...</span>
         </div>
       </div>
     );
@@ -61,9 +62,9 @@ export default function StudentDashboardPage() {
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
-              <BookOpen className="w-5 h-5" />
+              <Gamepad2 className="w-5 h-5" />
             </div>
-            <span className="font-bold text-white tracking-tight">LMS Portal</span>
+            <span className="font-bold text-white tracking-tight">Education Game</span>
           </div>
 
           <div className="flex items-center gap-4">
@@ -95,7 +96,7 @@ export default function StudentDashboardPage() {
               Welcome back, {user?.fullName}!
             </h1>
             <p className="text-slate-400 text-sm max-w-xl">
-              You are signed in to your subscription LMS. Your session is protected by
+              You are signed in to Education Game. Your session is protected by
               single-device hardware attestation.
             </p>
           </div>
@@ -161,23 +162,29 @@ export default function StudentDashboardPage() {
                   <span>{user.schoolName}</span>
                 </div>
               )}
+              {(user?.city || user?.state) && (
+                <div className="flex items-center gap-2 text-slate-300">
+                  <MapPin className="w-4 h-4 text-slate-500" />
+                  <span>{[user.city, user.state].filter(Boolean).join(", ")}</span>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Learning Activities (Stage 2 placeholder) */}
+          {/* Educational Games (Stage 2 placeholder) */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
-                <Layers className="w-5 h-5" />
+                <Gamepad2 className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-semibold text-white text-sm">Learning Activities</h3>
+                <h3 className="font-semibold text-white text-sm">Educational Games</h3>
                 <span className="text-[11px] text-purple-400 font-medium">Stage 2 Deliverable</span>
               </div>
             </div>
 
             <div className="bg-slate-950/60 rounded-xl p-4 border border-slate-800/80 text-xs text-slate-400 leading-relaxed">
-              Interactive HTML/JS exercises, progress tracking, and subscription packages will be
+              Interactive HTML/JS educational games, progress tracking, and activity packages will be
               accessible here once Stage 2 modules are enabled.
             </div>
           </div>

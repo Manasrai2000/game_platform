@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Laptop, ShieldCheck, ArrowRight, BookOpen, Users, Lock } from "lucide-react";
+import { Laptop, ShieldCheck, ArrowRight, Gamepad2, Users, Lock } from "lucide-react";
 
 export default function Home() {
   return (
@@ -9,9 +9,9 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
-              <BookOpen className="w-5 h-5" />
+              <Gamepad2 className="w-5 h-5" />
             </div>
-            <span className="font-bold text-white text-lg tracking-tight">Subscription LMS</span>
+            <span className="font-bold text-white text-lg tracking-tight">Education Game</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -40,14 +40,15 @@ export default function Home() {
         </div>
 
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight mb-6 leading-tight">
-          Next-Generation Learning LMS with{" "}
+          Next-Generation{" "}
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-300 to-indigo-200">
-            Hardware Single-Device Lock
-          </span>
+            Education Game Platform
+          </span>{" "}
+          with Single-Device Lock
         </h1>
 
         <p className="text-slate-400 text-base max-w-2xl mx-auto mb-10 leading-relaxed">
-          High-performance desktop learning platform designed exclusively for desktop and laptop
+          High-performance interactive learning platform designed exclusively for desktop and laptop
           browsers. Enforces atomic device binding, credential-sharing prevention, and instant Admin
           governance.
         </p>
@@ -79,7 +80,7 @@ export default function Home() {
             <h3 className="font-semibold text-white text-base mb-2">Desktop & Laptop Only</h3>
             <p className="text-slate-400 text-xs leading-relaxed">
               Enforced at request headers and client viewport. Tablets and smartphones are cleanly
-              gated to ensure an optimal learning experience.
+              gated to ensure an optimal interactive experience.
             </p>
           </div>
 
@@ -101,7 +102,7 @@ export default function Home() {
             <h3 className="font-semibold text-white text-base mb-2">Admin Governance</h3>
             <p className="text-slate-400 text-xs leading-relaxed">
               Admins can log in from any device, view registered students with active device binding
-              data, reset device locks, and override passwords.
+              data, manage classes and dropdown order, reset device locks, and override passwords.
             </p>
           </div>
         </div>
@@ -109,7 +110,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t border-slate-900 py-6 text-center text-xs text-slate-500">
-        <p>Subscription LMS Platform &copy; 2026. Built with Clean Architecture & Next.js.</p>
+        <p>Education Game Platform &copy; 2026. Built with Clean Architecture & Next.js.</p>
       </footer>
     </div>
   );

@@ -13,6 +13,8 @@ export interface ApiUser {
   mobileNumber?: string;
   classGrade?: string;
   schoolName?: string;
+  city?: string;
+  state?: string;
   isActive?: boolean;
 }
 
@@ -23,12 +25,22 @@ export interface StudentListItem {
   mobileNumber: string;
   classGrade: string;
   schoolName: string;
+  city: string;
+  state: string;
   isActive: boolean;
   createdAt: string;
   activeDeviceId: number | null;
   activeDeviceLabel: string | null;
   activeDeviceLastSeen: string | null;
   activeDeviceBoundIp: string | null;
+}
+
+export interface ClassItem {
+  id: number;
+  name: string;
+  display_order: number;
+  is_active: boolean;
+  created_at?: string;
 }
 
 export interface ApiResponse<T> {
@@ -73,7 +85,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
       error: {
         code: "NETWORK_ERROR",
         message:
-          "Unable to connect to the LMS server. Please ensure the backend is running.",
+          "Unable to connect to the Education Game server. Please ensure the backend is running.",
       },
     };
   }
@@ -87,6 +99,8 @@ export const api = {
     mobileNumber: string;
     classGrade: string;
     schoolName: string;
+    city: string;
+    state: string;
     password: string;
     deviceLabel: string;
     clientPublicKeySpki?: string;
@@ -135,5 +149,39 @@ export const api = {
     request<{ message: string }>(`/users/students/${id}/reset-device`, {
       method: "POST",
       body: JSON.stringify({ reason }),
+    }),
+
+  // Classes Management
+  getActiveClasses: () =>
+    request<{ classes: ClassItem[] }>("/classes/active", {
+      method: "GET",
+    }),
+
+  getAllClasses: () =>
+    request<{ classes: ClassItem[] }>("/classes", {
+      method: "GET",
+    }),
+
+  createClass: (data: { name: string; displayOrder: number; isActive: boolean }) =>
+    request<{ class: ClassItem }>("/classes", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  updateClass: (id: number, data: { name?: string; displayOrder?: number; isActive?: boolean }) =>
+    request<{ class: ClassItem }>(`/classes/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  deleteClass: (id: number) =>
+    request<{ message: string }>(`/classes/${id}`, {
+      method: "DELETE",
+    }),
+
+  reorderClasses: (items: { id: number; displayOrder: number }[]) =>
+    request<{ message: string }>("/classes/reorder", {
+      method: "PATCH",
+      body: JSON.stringify({ items }),
     }),
 };

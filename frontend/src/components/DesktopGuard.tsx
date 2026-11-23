@@ -36,13 +36,13 @@ export function DesktopGuard({ children }: { children: React.ReactNode }) {
             </div>
             <h1 className="text-2xl font-bold mb-3 tracking-tight">Desktop & Laptop Only</h1>
             <p className="text-slate-300 text-sm leading-relaxed mb-6">
-              This learning platform enforces high-security single-device locking designed exclusively
+              The <strong>Education Game</strong> platform enforces high-security single-device locking designed exclusively
               for <strong>laptops and desktop computers</strong>.
             </p>
             <div className="bg-slate-900/60 rounded-xl p-4 border border-slate-700/50 flex items-center gap-3 text-left">
               <Laptop className="w-6 h-6 text-indigo-400 shrink-0" />
               <div className="text-xs text-slate-400">
-                Please open this site on your authorized laptop or desktop browser to access your courses.
+                Please open this site on your authorized laptop or desktop browser to access your educational games.
               </div>
             </div>
           </div>
@@ -57,7 +57,7 @@ export function DesktopGuard({ children }: { children: React.ReactNode }) {
           </div>
           <h1 className="text-2xl font-bold mb-3 tracking-tight">Desktop & Laptop Only</h1>
           <p className="text-slate-300 text-sm leading-relaxed mb-6">
-            Please resize your window or access this learning platform from a laptop or desktop screen.
+            Please resize your window or access Education Game from a laptop or desktop screen.
           </p>
         </div>
       </div>
