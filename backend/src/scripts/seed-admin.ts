@@ -2,7 +2,7 @@ import { authRepository } from "../modules/auth/infrastructure/auth-repository";
 import { hashPassword } from "../core/security/argon2";
 import { pool } from "../core/database/connection";
 
-async function seedAdmin() {
+export async function seedAdmin(): Promise<void> {
   const adminEmail = process.env.ADMIN_EMAIL || "admin@gameplatform.local";
   const adminPassword = process.env.ADMIN_PASSWORD || "Admin@Secure123!";
   const adminFullName = process.env.ADMIN_NAME || "System Administrator";
@@ -15,10 +15,8 @@ async function seedAdmin() {
   if (existing) {
     console.log(`ℹ️ Admin already exists with ID: ${existing.id}. Updating password hash...`);
     await authRepository.updateUserPassword(existing.id, passwordHash);
-    console.log(`✅ Admin password updated successfully!`);
+    console.log(`✅ Admin password verified and up-to-date.`);
     console.log(`   Email: ${adminEmail}`);
-    console.log(`   Password: ${adminPassword}`);
-    await pool.end();
     return;
   }
 
@@ -37,13 +35,14 @@ async function seedAdmin() {
   console.log(`✅ Admin account created successfully!`);
   console.log(`   ID: ${admin.id}`);
   console.log(`   Email: ${adminEmail}`);
-  console.log(`   Password: ${adminPassword}`);
   console.log(`   Role: ${admin.role}`);
-
-  await pool.end();
 }
 
-seedAdmin().catch((err) => {
-  console.error("❌ Failed to seed admin:", err);
-  process.exit(1);
-});
+if (require.main === module) {
+  seedAdmin()
+    .catch((err) => {
+      console.error("❌ Failed to seed admin:", err);
+      process.exit(1);
+    })
+    .finally(() => pool.end());
+}
