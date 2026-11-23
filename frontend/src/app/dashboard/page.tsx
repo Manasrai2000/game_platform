@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { api, ApiUser, StudentJourneyResponse } from "@/lib/api";
+import { api, ApiUser, StudentJourneyResponse, BACKEND_BASE_URL } from "@/lib/api";
 import {
   Laptop,
   ShieldCheck,
@@ -453,7 +453,7 @@ export default function StudentDashboardPage() {
             {/* Sandbox iframe Container */}
             <div className="flex-1 bg-slate-100 p-2 sm:p-3 relative">
               <iframe
-                src={`http://localhost:4000${journeyData.activity.playUrl}?checkpoint=${currentCp}&maxCompleted=${maxCp}`}
+                src={`${BACKEND_BASE_URL}${journeyData.activity.playUrl}?checkpoint=${currentCp}&maxCompleted=${maxCp}`}
                 className="w-full h-full border-0 rounded-2xl bg-white shadow-inner"
                 sandbox="allow-scripts allow-forms allow-same-origin"
                 title="Class Game Journey Player"

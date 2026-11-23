@@ -1,7 +1,35 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { Laptop, ShieldCheck, ArrowRight, Gamepad2, Users, Lock } from "lucide-react";
+import {
+  Laptop,
+  ShieldCheck,
+  ArrowRight,
+  Gamepad2,
+  Users,
+  Lock,
+  LayoutDashboard,
+} from "lucide-react";
+import { api, ApiUser } from "@/lib/api";
 
 export default function Home() {
+  const [user, setUser] = useState<ApiUser | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    api.getMe().then((res) => {
+      if (isMounted && res.success && res.data?.user) {
+        setUser(res.data.user);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const dashboardHref = user?.role === "ADMIN" ? "/admin" : "/dashboard";
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-between">
       {/* Navigation */}
@@ -11,23 +39,43 @@ export default function Home() {
             <div className="p-2 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 shadow-sm">
               <Gamepad2 className="w-5 h-5" />
             </div>
-            <span className="font-bold text-slate-900 text-lg tracking-tight">Education Game</span>
+            <span className="font-bold text-slate-900 text-lg tracking-tight">
+              Education Game
+            </span>
           </div>
 
           <div className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 transition-all border border-slate-200"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/register"
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-md shadow-indigo-600/20 flex items-center gap-1.5"
-            >
-              <span>Get Started</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+            {user ? (
+              <>
+                <span className="hidden sm:inline-block text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
+                  Hi, <strong className="text-slate-800">{user.fullName.split(" ")[0]}</strong>
+                </span>
+                <Link
+                  href={dashboardHref}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-md shadow-indigo-600/20 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <LayoutDashboard className="w-3.5 h-3.5" />
+                  <span>Dashboard</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 transition-all border border-slate-200"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/register"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-md shadow-indigo-600/20 flex items-center gap-1.5"
+                >
+                  <span>Get Started</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -55,20 +103,33 @@ export default function Home() {
 
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
-          <Link
-            href="/register"
-            className="w-full sm:w-auto px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-sm transition-all shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2"
-          >
-            <span>Student Registration</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-          <Link
-            href="/login"
-            className="w-full sm:w-auto px-6 py-3.5 bg-white hover:bg-slate-50 text-slate-800 font-semibold rounded-xl text-sm transition-all border border-slate-300 shadow-sm flex items-center justify-center gap-2"
-          >
-            <Lock className="w-4 h-4 text-indigo-600" />
-            <span>Sign In to Platform</span>
-          </Link>
+          {user ? (
+            <Link
+              href={dashboardHref}
+              className="w-full sm:w-auto px-7 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm transition-all shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              <span>Go to {user.role === "ADMIN" ? "Admin Panel" : "Student Dashboard"}</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/register"
+                className="w-full sm:w-auto px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-sm transition-all shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2"
+              >
+                <span>Student Registration</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link
+                href="/login"
+                className="w-full sm:w-auto px-6 py-3.5 bg-white hover:bg-slate-50 text-slate-800 font-semibold rounded-xl text-sm transition-all border border-slate-300 shadow-sm flex items-center justify-center gap-2"
+              >
+                <Lock className="w-4 h-4 text-indigo-600" />
+                <span>Sign In to Platform</span>
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Feature Cards Grid */}

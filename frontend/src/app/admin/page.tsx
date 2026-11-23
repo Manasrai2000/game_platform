@@ -8,6 +8,7 @@ import {
   ApiUser,
   ClassItem,
   AdminActivityItem,
+  BACKEND_BASE_URL,
 } from "@/lib/api";
 import {
   Gamepad2,
@@ -1395,7 +1396,7 @@ export default function AdminDashboardPage() {
 
             <div className="flex-1 bg-slate-100 p-2">
               <iframe
-                src={`http://localhost:4000/activities-storage/${previewActivity.storagePath}/${previewActivity.entryFile}?checkpoint=1&maxCompleted=0`}
+                src={`${BACKEND_BASE_URL}/activities-storage/${previewActivity.storagePath}/${previewActivity.entryFile}?checkpoint=1&maxCompleted=0`}
                 className="w-full h-full border-0 rounded-2xl bg-white shadow-inner"
                 sandbox="allow-scripts allow-forms allow-same-origin"
                 title={previewActivity.title}

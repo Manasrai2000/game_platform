@@ -37,25 +37,24 @@ async function main() {
   const deletedStudents = await db.delete(users).where(eq(users.role, "STUDENT"));
   console.log("   ✅ All test student accounts cleared. Total dummy students: 0.");
 
-  // 5. Seed Default Class 1 Journey Game Package
-  console.log("\n🎮 5. Seeding Default Educational Game Package (Class 1)...");
+  // 5. Seed Default Educational Game Packages for Classes
+  console.log("\n🎮 5. Seeding Default Educational Game Packages for Classes...");
   const zipPath = path.resolve(__dirname, "../../sample_activity/sample_class_journey.zip");
   if (fs.existsSync(zipPath)) {
     const zipBuffer = fs.readFileSync(zipPath);
     const allClasses = await classesRepository.listAll();
-    const class1 = allClasses.find((c) => c.name.toLowerCase().includes("class 1"));
 
-    if (class1) {
-      const extracted = await activityStorageService.extractPackage(zipBuffer, class1.id);
+    for (const cls of allClasses) {
+      const extracted = await activityStorageService.extractPackage(zipBuffer, cls.id);
       await activitiesRepository.upsertClassActivity({
-        classId: class1.id,
-        title: "Class 1 Interactive Learning Journey",
-        description: "Curriculum-aligned multi-stage learning expedition for Class 1.",
+        classId: cls.id,
+        title: `${cls.name} Interactive Learning Journey`,
+        description: `Curriculum-aligned multi-stage learning expedition for ${cls.name}.`,
         storagePath: extracted.storagePath,
         entryFile: extracted.entryFile,
         totalCheckpoints: 3,
       });
-      console.log(`   ✅ Game Journey seeded for ${class1.name} (3 Checkpoints)`);
+      console.log(`   ✅ Game Journey seeded for ${cls.name} (Storage: ${extracted.storagePath})`);
     }
   } else {
     console.log("   ℹ️ Sample zip not found, skipping default activity seed.");

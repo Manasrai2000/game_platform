@@ -16,6 +16,7 @@ export function createApp(): express.Application {
     helmet({
       frameguard: false,
       crossOriginResourcePolicy: { policy: "cross-origin" },
+      contentSecurityPolicy: false,
     })
   );
 
@@ -61,6 +62,7 @@ export function createApp(): express.Application {
       res.setHeader("Access-Control-Allow-Origin", "*");
       res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
       res.removeHeader("X-Frame-Options");
+      res.removeHeader("Content-Security-Policy");
       next();
     },
     express.static(path.resolve(__dirname, "../storage/activities"))
