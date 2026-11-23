@@ -62,7 +62,7 @@ export default function LoginPage() {
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Sign In to Education Game</h1>
           <p className="text-slate-400 text-sm mt-1">
-            Access your courses from your authorized laptop
+            Access your courses from your authorized machine
           </p>
         </div>
 
@@ -129,7 +129,7 @@ export default function LoginPage() {
 
           <div className="p-3 bg-slate-800/40 rounded-xl border border-slate-800 flex items-center gap-2.5 text-slate-400 text-xs">
             <Laptop className="w-4 h-4 text-indigo-400 shrink-0" />
-            <span>Single-device lock active. Current laptop binding verified.</span>
+            <span>Single-device lock active. Current machine binding verified.</span>
           </div>
 
           <button
