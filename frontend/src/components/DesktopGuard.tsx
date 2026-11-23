@@ -29,19 +29,21 @@ export function DesktopGuard({ children }: { children: React.ReactNode }) {
     <>
       {/* 1. Device UA / Coarse Touch Overlay (Client-Side Check) */}
       {isMobileDevice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900 p-6 text-white text-center">
-          <div className="max-w-md bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-2xl">
-            <div className="mx-auto w-16 h-16 bg-rose-500/10 border border-rose-500/20 rounded-full flex items-center justify-center mb-6">
-              <MonitorX className="w-8 h-8 text-rose-400" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-6 text-slate-800 text-center">
+          <div className="max-w-md bg-white border border-slate-200 rounded-3xl p-8 shadow-2xl">
+            <div className="mx-auto w-16 h-16 bg-rose-50 border border-rose-200 rounded-full flex items-center justify-center mb-6">
+              <MonitorX className="w-8 h-8 text-rose-500" />
             </div>
-            <h1 className="text-2xl font-bold mb-3 tracking-tight">Desktop & Laptop Only</h1>
-            <p className="text-slate-300 text-sm leading-relaxed mb-6">
+            <h1 className="text-2xl font-bold mb-3 tracking-tight text-slate-900">
+              Desktop &amp; Laptop Only
+            </h1>
+            <p className="text-slate-600 text-sm leading-relaxed mb-6">
               The <strong>Education Game</strong> platform enforces high-security single-device locking designed exclusively
               for <strong>laptops and desktop computers</strong>.
             </p>
-            <div className="bg-slate-900/60 rounded-xl p-4 border border-slate-700/50 flex items-center gap-3 text-left">
-              <Laptop className="w-6 h-6 text-indigo-400 shrink-0" />
-              <div className="text-xs text-slate-400">
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 flex items-center gap-3 text-left">
+              <Laptop className="w-6 h-6 text-indigo-600 shrink-0" />
+              <div className="text-xs text-slate-600">
                 Please open this site on your authorized laptop or desktop browser to access your educational games.
               </div>
             </div>
@@ -50,13 +52,15 @@ export function DesktopGuard({ children }: { children: React.ReactNode }) {
       )}
 
       {/* 2. Responsive CSS Fallback for Small Viewports (< 1024px) */}
-      <div className="hidden max-lg:flex fixed inset-0 z-40 items-center justify-center bg-slate-900 p-6 text-white text-center">
-        <div className="max-w-md bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-2xl">
-          <div className="mx-auto w-16 h-16 bg-rose-500/10 border border-rose-500/20 rounded-full flex items-center justify-center mb-6">
-            <MonitorX className="w-8 h-8 text-rose-400" />
+      <div className="hidden max-lg:flex fixed inset-0 z-40 items-center justify-center bg-slate-900/60 backdrop-blur-md p-6 text-slate-800 text-center">
+        <div className="max-w-md bg-white border border-slate-200 rounded-3xl p-8 shadow-2xl">
+          <div className="mx-auto w-16 h-16 bg-rose-50 border border-rose-200 rounded-full flex items-center justify-center mb-6">
+            <MonitorX className="w-8 h-8 text-rose-500" />
           </div>
-          <h1 className="text-2xl font-bold mb-3 tracking-tight">Desktop & Laptop Only</h1>
-          <p className="text-slate-300 text-sm leading-relaxed mb-6">
+          <h1 className="text-2xl font-bold mb-3 tracking-tight text-slate-900">
+            Desktop &amp; Laptop Only
+          </h1>
+          <p className="text-slate-600 text-sm leading-relaxed mb-6">
             Please resize your window or access Education Game from a laptop or desktop screen.
           </p>
         </div>

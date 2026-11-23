@@ -60,12 +60,23 @@ export class UserController {
         .limit(limit)
         .offset(offset);
 
+      const [countResult] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(users)
+        .where(whereClause);
+      const total = Number(countResult?.count || 0);
+      const totalPages = Math.max(1, Math.ceil(total / limit));
+
       res.status(200).json({
         success: true,
         data: {
           students: studentList,
-          page,
-          limit,
+          pagination: {
+            total,
+            page,
+            limit,
+            totalPages,
+          },
         },
       });
     } catch (err) {

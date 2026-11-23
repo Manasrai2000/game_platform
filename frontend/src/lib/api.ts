@@ -43,6 +43,13 @@ export interface ClassItem {
   created_at?: string;
 }
 
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -134,8 +141,13 @@ export const api = {
     }),
 
   // Admin User Management
-  getStudents: (search = "", page = 1, limit = 50) =>
-    request<{ students: StudentListItem[]; page: number; limit: number }>(
+  getStudents: (search = "", page = 1, limit = 10) =>
+    request<{
+      students: StudentListItem[];
+      pagination?: PaginationMeta;
+      page?: number;
+      limit?: number;
+    }>(
       `/users/students?search=${encodeURIComponent(search)}&page=${page}&limit=${limit}`,
       { method: "GET" }
     ),
