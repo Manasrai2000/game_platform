@@ -11,6 +11,7 @@ export interface AuthenticatedUser {
   email: string;
   fullName: string;
   role: "STUDENT" | "ADMIN";
+  classGrade: string | null;
   isActive: boolean;
   sessionId: string;
   deviceId: number | null;
@@ -50,6 +51,7 @@ export async function requireAuth(
         email: users.email,
         fullName: users.full_name,
         role: users.role,
+        classGrade: users.class_grade,
         isActive: users.is_active,
         deviceId: sessions.device_id,
         revokedAt: sessions.revoked_at,
@@ -81,6 +83,7 @@ export async function requireAuth(
       email: sessionData.email,
       fullName: sessionData.fullName,
       role: sessionData.role,
+      classGrade: sessionData.classGrade,
       isActive: sessionData.isActive,
       sessionId: sessionData.sessionId,
       deviceId: sessionData.deviceId,

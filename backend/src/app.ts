@@ -2,6 +2,7 @@ import express from "express";
 import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import path from "path";
 import { env } from "./core/config/env";
 import { desktopOnlyGate } from "./core/middleware/desktop-gate";
 import { errorHandler } from "./core/middleware/error-handler";
@@ -10,8 +11,13 @@ import { buildApiRouter } from "./composition-root";
 export function createApp(): express.Application {
   const app = express();
 
-  // Basic security headers
-  app.use(helmet());
+  // Basic security headers (allowing cross-origin iframe sandbox embedding)
+  app.use(
+    helmet({
+      frameguard: false,
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+    })
+  );
 
   // CORS for frontend Next.js application
   const allowedOrigins = [
@@ -47,6 +53,18 @@ export function createApp(): express.Application {
   app.get("/health", (_req, res) => {
     res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
   });
+
+  // Static educational activities storage (bucket style static file serving)
+  app.use(
+    "/activities-storage",
+    (_req, res, next) => {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+      res.removeHeader("X-Frame-Options");
+      next();
+    },
+    express.static(path.resolve(__dirname, "../storage/activities"))
+  );
 
   // Desktop-only enforcement applied to all API v1 endpoints
   app.use("/api/v1", desktopOnlyGate, buildApiRouter());

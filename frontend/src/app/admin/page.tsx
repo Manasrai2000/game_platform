@@ -2,7 +2,13 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api, StudentListItem, ApiUser, ClassItem } from "@/lib/api";
+import {
+  api,
+  StudentListItem,
+  ApiUser,
+  ClassItem,
+  AdminActivityItem,
+} from "@/lib/api";
 import {
   Gamepad2,
   Search,
@@ -27,12 +33,15 @@ import {
   ShieldCheck,
   CreditCard,
   Layers,
+  Upload,
+  Play,
+  FileArchive,
 } from "lucide-react";
 
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [adminUser, setAdminUser] = useState<ApiUser | null>(null);
-  const [activeTab, setActiveTab] = useState<"students" | "classes">("students");
+  const [activeTab, setActiveTab] = useState<"students" | "classes" | "activities">("students");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // --- Students state & pagination ---
@@ -67,6 +76,20 @@ export default function AdminDashboardPage() {
   const [classNameInput, setClassNameInput] = useState("");
   const [classOrderInput, setClassOrderInput] = useState(0);
 
+  // --- Activities state & pagination ---
+  const [activitiesList, setActivitiesList] = useState<AdminActivityItem[]>([]);
+  const [loadingActivities, setLoadingActivities] = useState(false);
+  const [activityPage, setActivityPage] = useState(1);
+  const [activityLimit, setActivityLimit] = useState(10);
+
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [previewActivity, setPreviewActivity] = useState<AdminActivityItem | null>(null);
+  const [uploadClassId, setUploadClassId] = useState<number | "">("");
+  const [uploadTitle, setUploadTitle] = useState("");
+  const [uploadCheckpoints, setUploadCheckpoints] = useState(3);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+
   useEffect(() => {
     async function init() {
       const meRes = await api.getMe();
@@ -75,7 +98,7 @@ export default function AdminDashboardPage() {
         return;
       }
       setAdminUser(meRes.data.user);
-      await Promise.all([fetchStudents("", 1, 10), fetchClasses()]);
+      await Promise.all([fetchStudents("", 1, 10), fetchClasses(), fetchActivities()]);
       setLoading(false);
     }
     init();
@@ -106,6 +129,15 @@ export default function AdminDashboardPage() {
       setClassesList(res.data.classes);
     }
     setLoadingClasses(false);
+  }
+
+  async function fetchActivities() {
+    setLoadingActivities(true);
+    const res = await api.getAdminActivities();
+    if (res.success && res.data?.activities) {
+      setActivitiesList(res.data.activities);
+    }
+    setLoadingActivities(false);
   }
 
   function handleSearchSubmit(e: React.FormEvent) {
@@ -298,6 +330,68 @@ export default function AdminDashboardPage() {
     }
   }
 
+  // --- Activities CRUD Handlers ---
+
+  function openUploadActivityModal() {
+    setUploadClassId(classesList.length > 0 ? classesList[0].id : "");
+    setUploadTitle("");
+    setUploadCheckpoints(3);
+    setUploadFile(null);
+    setShowUploadModal(true);
+  }
+
+  async function handleUploadActivity(e: React.FormEvent) {
+    e.preventDefault();
+    if (!uploadClassId || !uploadFile) {
+      alert("Please select a class and upload a ZIP file");
+      return;
+    }
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("file", uploadFile);
+    formData.append("classId", String(uploadClassId));
+    formData.append("title", uploadTitle.trim() || `Class Activity Journey`);
+    formData.append("totalCheckpoints", String(uploadCheckpoints));
+
+    const res = await api.uploadActivityPackage(formData);
+    setUploading(false);
+
+    if (res.success) {
+      setActionMessage({
+        type: "success",
+        text: res.message || "Activity journey package uploaded successfully!",
+      });
+      setShowUploadModal(false);
+      await fetchActivities();
+    } else {
+      setActionMessage({
+        type: "error",
+        text: res.error?.message || "Failed to upload package",
+      });
+    }
+  }
+
+  async function handleDeleteActivity(activity: AdminActivityItem) {
+    if (!confirm(`Are you sure you want to delete journey package for "${activity.className}"?`)) {
+      return;
+    }
+
+    const res = await api.deleteActivityPackage(activity.id);
+    if (res.success) {
+      setActionMessage({
+        type: "success",
+        text: `Journey package for ${activity.className} deleted successfully`,
+      });
+      await fetchActivities();
+    } else {
+      setActionMessage({
+        type: "error",
+        text: res.error?.message || "Failed to delete activity",
+      });
+    }
+  }
+
   async function handleLogout() {
     await api.logout();
     window.location.href = "/login";
@@ -308,6 +402,13 @@ export default function AdminDashboardPage() {
   const paginatedClasses = classesList.slice(
     (classPage - 1) * classLimit,
     classPage * classLimit
+  );
+
+  // --- Activities Paginated Slicing ---
+  const activityTotalPages = Math.max(1, Math.ceil(activitiesList.length / activityLimit));
+  const paginatedActivities = activitiesList.slice(
+    (activityPage - 1) * activityLimit,
+    activityPage * activityLimit
   );
 
   function getPageNumbers(currentPage: number, totalPages: number): number[] {
@@ -433,6 +534,33 @@ export default function AdminDashboardPage() {
                     {classesList.length}
                   </span>
                 </button>
+
+                {/* TAB 3: GAME ACTIVITIES (STAGE 2) */}
+                <button
+                  onClick={() => {
+                    setActiveTab("activities");
+                    setIsMobileSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === "activities"
+                      ? "bg-indigo-50 text-indigo-700 border border-indigo-100 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Layers className={`w-4 h-4 ${activeTab === "activities" ? "text-indigo-600" : "text-slate-400"}`} />
+                    <span>Game Activities</span>
+                  </div>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      activeTab === "activities"
+                        ? "bg-indigo-600 text-white"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {activitiesList.length}
+                  </span>
+                </button>
               </nav>
             </div>
 
@@ -441,16 +569,6 @@ export default function AdminDashboardPage() {
                 Upcoming Modules
               </p>
               <div className="space-y-1">
-                <div className="flex items-center justify-between px-3.5 py-2 rounded-xl text-xs text-slate-400 bg-slate-50/70 border border-dashed border-slate-200">
-                  <div className="flex items-center gap-2.5">
-                    <Layers className="w-4 h-4 text-slate-400" />
-                    <span>Game Activities</span>
-                  </div>
-                  <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded">
-                    Stage 2
-                  </span>
-                </div>
-
                 <div className="flex items-center justify-between px-3.5 py-2 rounded-xl text-xs text-slate-400 bg-slate-50/70 border border-dashed border-slate-200">
                   <div className="flex items-center gap-2.5">
                     <CreditCard className="w-4 h-4 text-slate-400" />
@@ -502,15 +620,19 @@ export default function AdminDashboardPage() {
             <div className="text-xs">
               <span className="text-slate-400 font-medium">Admin / </span>
               <span className="text-slate-800 font-bold">
-                {activeTab === "students" ? "Students & Device Controls" : "Classes & Dropdown Order"}
+                {activeTab === "students"
+                  ? "Students & Device Controls"
+                  : activeTab === "classes"
+                  ? "Classes & Dropdown Order"
+                  : "Class Game Packages & Journeys"}
               </span>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Single-Device Lock Active</span>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Stage 2 Journey Engine Active</span>
             </div>
           </div>
         </header>
@@ -968,8 +1090,320 @@ export default function AdminDashboardPage() {
               </div>
             </div>
           )}
+
+          {/* TAB 3: GAME ACTIVITIES (STAGE 2) */}
+          {activeTab === "activities" && (
+            <div>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+                    Class Game Journeys &amp; Packages
+                  </h1>
+                  <p className="text-slate-500 text-xs mt-1">
+                    Manage the all-in-one interactive game journey for each class. Students resume automatically from their last completed checkpoint.
+                  </p>
+                </div>
+
+                <button
+                  onClick={openUploadActivityModal}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Upload Journey Package (.zip)</span>
+                </button>
+              </div>
+
+              {/* Activities Paginated Table */}
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 text-slate-600 uppercase tracking-wider text-[10px] border-b border-slate-200">
+                      <tr>
+                        <th className="py-3.5 px-4 font-semibold">Assigned Class</th>
+                        <th className="py-3.5 px-4 font-semibold">Journey Package Title</th>
+                        <th className="py-3.5 px-4 font-semibold">Checkpoints / Stages</th>
+                        <th className="py-3.5 px-4 font-semibold">Version &amp; Entry</th>
+                        <th className="py-3.5 px-4 text-right font-semibold">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {loadingActivities ? (
+                        <tr>
+                          <td colSpan={5} className="py-12 text-center text-slate-400">
+                            <div className="flex items-center justify-center gap-2">
+                              <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                              <span>Loading game journeys...</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : activitiesList.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-10 text-center text-slate-500">
+                            No game packages uploaded yet. Click &apos;Upload Journey Package&apos; above.
+                          </td>
+                        </tr>
+                      ) : (
+                        paginatedActivities.map((act) => (
+                          <tr key={act.id} className="hover:bg-slate-50/80 transition-colors">
+                            {/* Class */}
+                            <td className="py-4 px-4">
+                              <div className="font-bold text-indigo-700 text-sm flex items-center gap-1.5">
+                                <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
+                                <span>{act.className}</span>
+                              </div>
+                            </td>
+
+                            {/* Title */}
+                            <td className="py-4 px-4 font-medium text-slate-900">
+                              <div>{act.title}</div>
+                              <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                                storage/{act.storagePath}
+                              </div>
+                            </td>
+
+                            {/* Checkpoints */}
+                            <td className="py-4 px-4">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span>{act.totalCheckpoints} Progressive Stages</span>
+                              </span>
+                            </td>
+
+                            {/* Version */}
+                            <td className="py-4 px-4 text-slate-600 font-mono text-[11px]">
+                              <span className="font-bold text-slate-800">v{act.version}</span>
+                              <span className="text-slate-400"> ({act.entryFile})</span>
+                            </td>
+
+                            {/* Actions */}
+                            <td className="py-4 px-4 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => setPreviewActivity(act)}
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 cursor-pointer text-xs font-semibold transition-colors"
+                                  title="Test & Preview in Sandbox"
+                                >
+                                  <Play className="w-3.5 h-3.5" />
+                                  <span>Preview</span>
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteActivity(act)}
+                                  className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 cursor-pointer transition-colors"
+                                  title="Delete Journey Package"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Activities Pagination Bar */}
+                <div className="px-6 py-4 border-t border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 text-xs text-slate-500">
+                    <span>
+                      Showing{" "}
+                      <strong className="text-slate-800">
+                        {activitiesList.length === 0 ? 0 : (activityPage - 1) * activityLimit + 1}
+                      </strong>{" "}
+                      to{" "}
+                      <strong className="text-slate-800">
+                        {Math.min(activityPage * activityLimit, activitiesList.length)}
+                      </strong>{" "}
+                      of <strong className="text-slate-800">{activitiesList.length}</strong> packages
+                    </span>
+                    <span className="text-slate-300">|</span>
+                    <label className="flex items-center gap-1.5 text-xs text-slate-600">
+                      <span>Rows:</span>
+                      <select
+                        value={activityLimit}
+                        onChange={(e) => {
+                          setActivityLimit(Number(e.target.value));
+                          setActivityPage(1);
+                        }}
+                        className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-700 focus:outline-none focus:border-indigo-600 cursor-pointer"
+                      >
+                        <option value={10}>10</option>
+                        <option value={25}>25</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setActivityPage((prev) => Math.max(1, prev - 1))}
+                      disabled={activityPage <= 1}
+                      className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-white text-xs flex items-center gap-1 cursor-pointer disabled:cursor-not-allowed transition-colors"
+                      title="Previous Page"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Prev</span>
+                    </button>
+
+                    {getPageNumbers(activityPage, activityTotalPages).map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => setActivityPage(p)}
+                        className={`w-7 h-7 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+                          p === activityPage
+                            ? "bg-indigo-600 text-white shadow-xs"
+                            : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-100"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+
+                    <button
+                      onClick={() => setActivityPage((prev) => Math.min(activityTotalPages, prev + 1))}
+                      disabled={activityPage >= activityTotalPages}
+                      className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-white text-xs flex items-center gap-1 cursor-pointer disabled:cursor-not-allowed transition-colors"
+                      title="Next Page"
+                    >
+                      <span className="hidden sm:inline">Next</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </main>
       </div>
+
+      {/* Upload Journey Package Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-slate-900 mb-1">
+              Upload Class Journey Package
+            </h3>
+            <p className="text-xs text-slate-500 mb-4">
+              Upload a .zip package containing an index.html file with linked checkpoints.
+            </p>
+
+            <form onSubmit={handleUploadActivity} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Target Class</label>
+                <select
+                  required
+                  value={uploadClassId}
+                  onChange={(e) => setUploadClassId(Number(e.target.value))}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs focus:outline-none focus:border-indigo-600"
+                >
+                  {classesList.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Journey Title</label>
+                <input
+                  type="text"
+                  required
+                  value={uploadTitle}
+                  onChange={(e) => setUploadTitle(e.target.value)}
+                  placeholder="e.g. Class 1 Interactive Learning Journey"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs focus:outline-none focus:border-indigo-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Total Checkpoints</label>
+                <input
+                  type="number"
+                  min={1}
+                  required
+                  value={uploadCheckpoints}
+                  onChange={(e) => setUploadCheckpoints(Number(e.target.value))}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs focus:outline-none focus:border-indigo-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">ZIP Package File</label>
+                <input
+                  type="file"
+                  accept=".zip"
+                  required
+                  onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                  className="w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">Must contain an index.html at root (Max 100MB)</p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowUploadModal(false)}
+                  className="px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs transition-colors cursor-pointer border border-slate-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={uploading || !uploadFile}
+                  className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50 shadow-xs flex items-center gap-1.5"
+                >
+                  {uploading ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Extracting &amp; Validating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Extract &amp; Deploy Package</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Game Preview Sandbox Modal */}
+      {previewActivity && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 sm:p-6">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-5xl w-full h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="p-4 px-6 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-indigo-100 text-indigo-700 rounded-lg">
+                  <Gamepad2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">{previewActivity.title}</h3>
+                  <p className="text-[10px] text-slate-500">
+                    Testing preview for {previewActivity.className} (Sandbox Mode)
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPreviewActivity(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 bg-slate-100 p-2">
+              <iframe
+                src={`http://localhost:4000/activities-storage/${previewActivity.storagePath}/${previewActivity.entryFile}?checkpoint=1&maxCompleted=0`}
+                className="w-full h-full border-0 rounded-2xl bg-white shadow-inner"
+                sandbox="allow-scripts allow-forms allow-same-origin"
+                title={previewActivity.title}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Class Create / Edit Modal */}
       {showClassModal && (

@@ -50,6 +50,47 @@ export interface PaginationMeta {
   totalPages: number;
 }
 
+export interface AdminActivityItem {
+  id: number;
+  classId: number;
+  className: string;
+  title: string;
+  version: number;
+  storagePath: string;
+  entryFile: string;
+  totalCheckpoints: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StudentJourneyResponse {
+  hasPackage: boolean;
+  message?: string;
+  className?: string;
+  class?: {
+    id: number;
+    name: string;
+  };
+  activity?: {
+    id: number;
+    title: string;
+    description: string;
+    version: number;
+    storagePath: string;
+    entryFile: string;
+    totalCheckpoints: number;
+    playUrl: string;
+  };
+  progress?: {
+    currentCheckpoint: number;
+    maxCompletedCheckpoint: number;
+    isCompleted: boolean;
+    journeyState: any;
+    lastPlayedAt: string;
+  };
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -195,5 +236,52 @@ export const api = {
     request<{ message: string }>("/classes/reorder", {
       method: "PATCH",
       body: JSON.stringify({ items }),
+    }),
+
+  // Activities & Journey Management
+  getAdminActivities: () =>
+    request<{ activities: AdminActivityItem[] }>("/activities/admin", {
+      method: "GET",
+    }),
+
+  uploadActivityPackage: async (formData: FormData) => {
+    const url = `${API_BASE}/activities/upload`;
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+      const json = await res.json();
+      return json as ApiResponse<{ activity: AdminActivityItem }>;
+    } catch {
+      return {
+        success: false,
+        error: { code: "UPLOAD_ERROR", message: "Failed to upload activity package" },
+      };
+    }
+  },
+
+  deleteActivityPackage: (id: number) =>
+    request<{ message: string }>(`/activities/${id}`, {
+      method: "DELETE",
+    }),
+
+  getMyJourney: () =>
+    request<StudentJourneyResponse>("/activities/my-journey", {
+      method: "GET",
+    }),
+
+  advanceCheckpoint: (completedCheckpoint: number, nextCheckpoint: number, stateData?: any) =>
+    request<{
+      progress: {
+        currentCheckpoint: number;
+        maxCompletedCheckpoint: number;
+        isCompleted: boolean;
+        journeyState: any;
+      };
+    }>("/activities/my-journey/checkpoint", {
+      method: "POST",
+      body: JSON.stringify({ completedCheckpoint, nextCheckpoint, stateData }),
     }),
 };

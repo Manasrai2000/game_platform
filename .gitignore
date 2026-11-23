@@ -24,6 +24,9 @@ pnpm-debug.log*
 lerna-debug.log*
 *.log
 
+# Storage & Uploads
+backend/storage/
+
 # OS & Editor
 .DS_Store
 *.pem

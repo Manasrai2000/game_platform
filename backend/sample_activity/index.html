@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Class Learning Journey</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    body {
+      background: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 50%, #f5f3ff 100%);
+      color: #0f172a;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+    }
+    .header {
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      border: 1px solid #e2e8f0;
+      border-radius: 20px;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      background: #4f46e5;
+      color: white;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    .brand h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    .brand p {
+      font-size: 12px;
+      color: #64748b;
+    }
+    .journey-status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .badge {
+      background: #ecfdf5;
+      color: #059669;
+      border: 1px solid #a7f3d0;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    /* Stepper Timeline */
+    .timeline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 20px;
+      padding: 20px 32px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+      position: relative;
+    }
+    .step-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+      z-index: 2;
+      cursor: pointer;
+    }
+    .step-circle {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 15px;
+      transition: all 0.3s ease;
+      background: #f1f5f9;
+      color: #94a3b8;
+      border: 2px solid #cbd5e1;
+    }
+    .step-item.completed .step-circle {
+      background: #10b981;
+      color: white;
+      border-color: #059669;
+    }
+    .step-item.active .step-circle {
+      background: #4f46e5;
+      color: white;
+      border-color: #4338ca;
+      box-shadow: 0 0 0 4px #e0e7ff;
+      animation: pulse 2s infinite;
+    }
+    .step-item.locked .step-circle {
+      background: #f8fafc;
+      color: #cbd5e1;
+      border-color: #e2e8f0;
+      cursor: not-allowed;
+    }
+    .step-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #64748b;
+    }
+    .step-item.active .step-title {
+      color: #4f46e5;
+      font-weight: 700;
+    }
+    .step-item.completed .step-title {
+      color: #059669;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(79, 70, 229, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0); }
+    }
+
+    /* Main Activity Card */
+    .activity-container {
+      flex: 1;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 24px;
+      padding: 32px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .level-badge {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #4f46e5;
+      background: #eef2ff;
+      border: 1px solid #e0e7ff;
+      padding: 4px 12px;
+      border-radius: 999px;
+      margin-bottom: 12px;
+    }
+    .level-title {
+      font-size: 26px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 8px;
+    }
+    .level-desc {
+      font-size: 14px;
+      color: #64748b;
+      max-width: 520px;
+      line-height: 1.5;
+      margin-bottom: 28px;
+    }
+
+    /* Game Puzzle Elements */
+    .puzzle-box {
+      background: #f8fafc;
+      border: 2px dashed #cbd5e1;
+      border-radius: 20px;
+      padding: 24px 32px;
+      margin-bottom: 24px;
+      width: 100%;
+      max-w: 480px;
+      min-height: 140px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .puzzle-question {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 16px;
+    }
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      width: 100%;
+      max-width: 360px;
+    }
+    .option-btn {
+      background: white;
+      border: 2px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #334155;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .option-btn:hover {
+      border-color: #6366f1;
+      background: #f5f3ff;
+      color: #4f46e5;
+      transform: translateY(-2px);
+    }
+    .option-btn.correct {
+      background: #10b981;
+      border-color: #059669;
+      color: white;
+    }
+    .option-btn.wrong {
+      background: #ef4444;
+      border-color: #dc2626;
+      color: white;
+    }
+
+    /* Completed Locked Notice */
+    .notice-completed {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 16px;
+      padding: 18px 24px;
+      max-width: 440px;
+      color: #065f46;
+      font-size: 13px;
+      line-height: 1.5;
+      margin-top: 12px;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      background: #1e293b;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2);
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s ease;
+      z-index: 100;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="brand">
+      <div class="brand-icon">🎮</div>
+      <div>
+        <h1>Class Journey Expedition</h1>
+        <p>Interactive single-journey curriculum for this class</p>
+      </div>
+    </div>
+    <div class="journey-status">
+      <div class="badge" id="journeyBadge">Resuming from Checkpoint 1</div>
+    </div>
+  </div>
+
+  <!-- Checkpoint Stepper -->
+  <div class="timeline" id="timelineContainer">
+    <!-- Populated by JS -->
+  </div>
+
+  <!-- Main Interactive Area -->
+  <div class="activity-container" id="activityContainer">
+    <div class="level-badge" id="levelBadge">Checkpoint 1 of 3</div>
+    <h2 class="level-title" id="levelTitle">Level 1: Alphabet & Word Explorer</h2>
+    <p class="level-desc" id="levelDesc">
+      Match the correct fruit with its first alphabet letter to unlock the next level of your journey!
+    </p>
+
+    <!-- Puzzle Box -->
+    <div class="puzzle-box" id="puzzleBox">
+      <!-- Options injected by JS -->
+    </div>
+
+    <!-- No Replay Banner (if attempting to access previous level) -->
+    <div class="notice-completed" id="completedNotice" style="display: none;">
+      <strong>Level Already Completed:</strong> Client rules enforce that previous activities cannot be replayed. Your journey automatically moves forward!
+    </div>
+  </div>
+
+  <div class="toast" id="toastMsg"></div>
+
+  <script>
+    // Levels metadata for this class journey
+    const JOURNEY_LEVELS = [
+      {
+        id: 1,
+        title: "Level 1: Alphabet & Word Match",
+        desc: "Match the correct fruit that starts with the letter 'A' to progress forward.",
+        question: "Which of these starts with the letter 'A'?",
+        options: ["🍌 Banana", "🍎 Apple", "🍇 Grapes", "🍊 Orange"],
+        correctIndex: 1
+      },
+      {
+        id: 2,
+        title: "Level 2: Math & Number Addition",
+        desc: "Solve this simple sum to help the school mascot cross the bridge!",
+        question: "What is 4 + 3 ?",
+        options: ["6", "7", "8", "9"],
+        correctIndex: 1
+      },
+      {
+        id: 3,
+        title: "Level 3: Color & Shape Identification",
+        desc: "Identify the primary shape with 3 equal sides to complete the journey!",
+        question: "Which shape has exactly 3 sides?",
+        options: ["Square", "Circle", "Triangle", "Rectangle"],
+        correctIndex: 2
+      }
+    ];
+
+    // Read initial progress from URL search params or default
+    const urlParams = new URLSearchParams(window.location.search);
+    let currentCheckpoint = parseInt(urlParams.get("checkpoint")) || 1;
+    let maxCompletedCheckpoint = parseInt(urlParams.get("maxCompleted")) || 0;
+
+    // Active level being displayed (always defaults to currentCheckpoint)
+    let activeLevelId = Math.min(currentCheckpoint, JOURNEY_LEVELS.length);
+
+    // Audio synthesizer for victory chimes without external assets
+    function playChime(isSuccess) {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        if (isSuccess) {
+          osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+          osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1); // E5
+          osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2); // G5
+        } else {
+          osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+          osc.frequency.setValueAtTime(200, audioCtx.currentTime + 0.15);
+        }
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.4);
+      } catch (e) {
+        // AudioContext not allowed before interaction
+      }
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById("toastMsg");
+      toast.textContent = message;
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 3000);
+    }
+
+    function renderTimeline() {
+      const container = document.getElementById("timelineContainer");
+      container.innerHTML = "";
+
+      JOURNEY_LEVELS.forEach((level) => {
+        const isCompleted = level.id <= maxCompletedCheckpoint;
+        const isActive = level.id === currentCheckpoint;
+        const isLocked = level.id > currentCheckpoint;
+
+        const item = document.createElement("div");
+        item.className = `step-item ${isCompleted ? 'completed' : ''} ${isActive ? 'active' : ''} ${isLocked ? 'locked' : ''}`;
+        
+        item.innerHTML = `
+          <div class="step-circle">${isCompleted ? '✓' : level.id}</div>
+          <span class="step-title">Stage ${level.id}</span>
+        `;
+
+        item.addEventListener("click", () => {
+          if (isCompleted) {
+            showToast("⚠️ Activity already completed! You cannot replay previous activities.");
+          } else if (isLocked) {
+            showToast("🔒 Finish current checkpoint first to unlock this stage.");
+          } else {
+            activeLevelId = level.id;
+            renderLevel();
+          }
+        });
+
+        container.appendChild(item);
+      });
+
+      const badge = document.getElementById("journeyBadge");
+      if (maxCompletedCheckpoint >= JOURNEY_LEVELS.length) {
+        badge.textContent = "🏆 All Journey Levels Completed!";
+        badge.style.background = "#ecfdf5";
+      } else {
+        badge.textContent = `Resuming from Checkpoint ${currentCheckpoint} of ${JOURNEY_LEVELS.length}`;
+      }
+    }
+
+    function renderLevel() {
+      const level = JOURNEY_LEVELS.find((l) => l.id === activeLevelId);
+      if (!level) return;
+
+      document.getElementById("levelBadge").textContent = `Checkpoint ${level.id} of ${JOURNEY_LEVELS.length}`;
+      document.getElementById("levelTitle").textContent = level.title;
+      document.getElementById("levelDesc").textContent = level.desc;
+
+      const puzzleBox = document.getElementById("puzzleBox");
+      const completedNotice = document.getElementById("completedNotice");
+
+      // Check if this level is in the past (client rule: no replay)
+      if (level.id <= maxCompletedCheckpoint) {
+        completedNotice.style.display = "block";
+        puzzleBox.innerHTML = `
+          <div style="font-size: 40px; margin-bottom: 8px;">✅</div>
+          <div style="font-size: 16px; font-weight: 700; color: #059669;">Stage Complete</div>
+          <p style="font-size: 12px; color: #64748b; margin-top: 4px;">Past activities cannot be played repeatedly. Please continue your forward progress!</p>
+        `;
+        return;
+      }
+
+      completedNotice.style.display = "none";
+
+      puzzleBox.innerHTML = `
+        <div class="puzzle-question">${level.question}</div>
+        <div class="options-grid" id="optionsGrid"></div>
+      `;
+
+      const grid = document.getElementById("optionsGrid");
+      level.options.forEach((optText, index) => {
+        const btn = document.createElement("button");
+        btn.className = "option-btn";
+        btn.textContent = optText;
+        btn.addEventListener("click", () => handleAnswer(level, index, btn));
+        grid.appendChild(btn);
+      });
+    }
+
+    function handleAnswer(level, selectedIndex, buttonElement) {
+      if (selectedIndex === level.correctIndex) {
+        buttonElement.classList.add("correct");
+        playChime(true);
+        showToast("🎉 Excellent! Correct Answer. Moving forward...");
+
+        // Update progress state
+        maxCompletedCheckpoint = Math.max(maxCompletedCheckpoint, level.id);
+        const nextLevelId = level.id + 1;
+        currentCheckpoint = nextLevelId;
+
+        // Post checkpoint completion message to parent LMS platform
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage(
+            {
+              type: "EDUCATION_GAME_CHECKPOINT_COMPLETED",
+              completedCheckpoint: level.id,
+              nextCheckpoint: nextLevelId,
+              stateData: {
+                currentLevel: nextLevelId,
+                lastCompleted: level.id,
+                timestamp: Date.now()
+              }
+            },
+            "*"
+          );
+        }
+
+        setTimeout(() => {
+          if (nextLevelId <= JOURNEY_LEVELS.length) {
+            activeLevelId = nextLevelId;
+          }
+          renderTimeline();
+          renderLevel();
+        }, 1200);
+
+      } else {
+        buttonElement.classList.add("wrong");
+        playChime(false);
+        showToast("❌ Try again! Choose the correct answer.");
+        setTimeout(() => buttonElement.classList.remove("wrong"), 1000);
+      }
+    }
+
+    // Listen for incoming state from Parent Platform if delivered via postMessage
+    window.addEventListener("message", (event) => {
+      if (event.data && event.data.type === "INIT_JOURNEY_STATE") {
+        if (event.data.checkpoint) currentCheckpoint = event.data.checkpoint;
+        if (event.data.maxCompleted) maxCompletedCheckpoint = event.data.maxCompleted;
+        activeLevelId = Math.min(currentCheckpoint, JOURNEY_LEVELS.length);
+        renderTimeline();
+        renderLevel();
+      }
+    });
+
+    // Initial render
+    renderTimeline();
+    renderLevel();
+  </script>
+</body>
+</html>

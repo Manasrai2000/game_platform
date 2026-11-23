@@ -15,6 +15,13 @@
       "when": 1795414789368,
       "tag": "0001_odd_domino",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1795428558775,
+      "tag": "0002_cloudy_fixer",
+      "breakpoints": true
     }
   ]
 }
