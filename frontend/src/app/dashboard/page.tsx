@@ -378,38 +378,8 @@ export default function StudentDashboardPage() {
                     />
                   )}
                 </div>
-
                 {/* Protective Glass & Gradient Overlay */}
                 <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-[0.5px] pointer-events-none z-10 transition-colors group-hover:bg-slate-900/10" />
-
-                {/* Top Activity Badge on Card */}
-                <div className="relative z-20 p-5 sm:p-6 flex items-center justify-between">
-                  <div className="px-3.5 py-1.5 rounded-full bg-slate-900/70 backdrop-blur-md border border-white/20 text-white text-xs font-bold flex items-center gap-2 shadow-sm">
-                    <Gamepad2 className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>{journeyData.activity?.title || "Active Activity"}</span>
-                  </div>
-                  <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-amber-400 text-amber-950 shadow-sm">
-                    Stage {currentCp}
-                  </span>
-                </div>
-
-                {/* Childish Rounded Glossy PLAY Button in Center */}
-                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none">
-                  <div className="px-8 py-3.5 sm:px-10 sm:py-4 rounded-full bg-gradient-to-b from-amber-300 via-orange-400 to-amber-500 text-white font-black text-base sm:text-lg tracking-wider uppercase shadow-[0_10px_30px_rgba(245,158,11,0.6)] border-3 border-white/80 flex items-center gap-2.5 transform transition-transform duration-200 group-hover:scale-110 active:scale-95">
-                    <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-white text-white drop-shadow-sm" />
-                    <span className="drop-shadow-md">PLAY</span>
-                  </div>
-                  <span className="mt-2 text-xs font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] tracking-wide">
-                    Start Your Mission!
-                  </span>
-                </div>
-
-                {/* Bottom Glance Hint */}
-                <div className="relative z-20 p-4 text-center">
-                  <span className="text-[11px] text-white/90 font-medium px-3 py-1 rounded-full bg-black/40 backdrop-blur-xs">
-                    Live stage glance preview • Click to enter full page
-                  </span>
-                </div>
               </div>
 
               {/* RIGHT SIDE: Curriculum Details & Progressive Checkpoints */}
