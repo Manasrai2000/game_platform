@@ -4,11 +4,12 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { getDeviceLabel, getOrCreateDevicePublicKey } from "@/lib/device-binding";
-import { ShieldAlert, Lock, Mail, ArrowRight, Laptop, Gamepad2 } from "lucide-react";
+import { ShieldAlert, Lock, Mail, ArrowRight, Laptop, Gamepad2, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDeviceLocked, setIsDeviceLocked] = useState(false);
@@ -117,21 +118,30 @@ export default function LoginPage() {
               <span className="text-[11px] text-slate-400">Contact Admin to reset</span>
             </div>
             <div className="relative">
-              <Lock className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Lock className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-11 pr-4 py-3 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-100 transition-all"
+                className="w-full pl-11 pr-11 py-3 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-100 transition-all"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-lg focus:outline-none transition-colors"
+                tabIndex={-1}
+                title={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
 
           <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-2.5 text-slate-600 text-xs">
             <Laptop className="w-4 h-4 text-indigo-600 shrink-0" />
-            <span>Single-device lock active. Current machine binding verified.</span>
+            <span>Single-device lock active. Current device binding verified.</span>
           </div>
 
           <button

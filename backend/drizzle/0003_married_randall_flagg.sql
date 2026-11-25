@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `raw_password` varchar(255);

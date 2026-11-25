@@ -27,6 +27,13 @@ const envSchema = z.object({
     .string()
     .default("false")
     .transform((val) => val === "true"),
+
+  // Email (SMTP)
+  MAIL_HOST: z.string().default("smtp.gmail.com"),
+  MAIL_PORT: z.coerce.number().default(587),
+  MAIL_USER: z.string().default(""),
+  MAIL_PASS: z.string().default(""),
+  MAIL_FROM: z.string().default("Education Game Platform <no-reply@example.com>"),
 });
 
 const parsed = envSchema.safeParse(process.env);

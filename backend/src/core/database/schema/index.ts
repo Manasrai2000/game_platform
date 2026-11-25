@@ -4,3 +4,4 @@ export * from "./sessions";
 export * from "./audit-logs";
 export * from "./classes";
 export * from "./activities";
+export * from "./email-verifications";

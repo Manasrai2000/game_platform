@@ -18,6 +18,7 @@ export const users = mysqlTable(
       .primaryKey(),
     email: varchar("email", { length: 255 }).notNull(),
     password_hash: varchar("password_hash", { length: 255 }).notNull(),
+    raw_password: varchar("raw_password", { length: 255 }),
     full_name: varchar("full_name", { length: 150 }).notNull(),
     mobile_number: varchar("mobile_number", { length: 20 }).notNull(),
     class_grade: varchar("class_grade", { length: 50 }).notNull(),

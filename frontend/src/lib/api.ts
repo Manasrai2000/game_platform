@@ -30,10 +30,57 @@ export interface StudentListItem {
   state: string;
   isActive: boolean;
   createdAt: string;
+  rawPassword?: string | null;
   activeDeviceId: number | null;
   activeDeviceLabel: string | null;
   activeDeviceLastSeen: string | null;
   activeDeviceBoundIp: string | null;
+}
+
+export interface SessionItem {
+  id: string;
+  ipAddress: string;
+  userAgent: string;
+  createdAt: string;
+  expiresAt: string;
+  revokedAt: string | null;
+}
+
+export interface StudentFullDetails {
+  student: StudentListItem & { updatedAt?: string };
+  activeDevice: {
+    id: number;
+    deviceLabel: string;
+    boundIp: string;
+    status: "ACTIVE" | "REVOKED";
+    lastSeenAt: string;
+    createdAt: string;
+  } | null;
+  activeSession: SessionItem | null;
+  lastLoginAt: string | null;
+  recentSessions: SessionItem[];
+}
+
+export interface StudentFilterParams {
+  search?: string;
+  status?: "all" | "active" | "inactive";
+  classGrade?: string;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface UpdateStudentInput {
+  fullName?: string;
+  email?: string;
+  mobileNumber?: string;
+  classGrade?: string;
+  schoolName?: string;
+  city?: string;
+  state?: string;
+  password?: string;
+  isActive?: boolean;
 }
 
 export interface ClassItem {
@@ -142,6 +189,12 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
 export const api = {
   // Auth
+  sendRegistrationOtp: (data: { email: string; fullName?: string }) =>
+    request<{ message: string }>("/auth/send-otp", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
   register: (data: {
     fullName: string;
     email: string;
@@ -151,6 +204,7 @@ export const api = {
     city: string;
     state: string;
     password: string;
+    otp: string;
     deviceLabel: string;
     clientPublicKeySpki?: string;
   }) => request<{ user: ApiUser; deviceBound: boolean }>("/auth/register", {
@@ -176,6 +230,19 @@ export const api = {
     method: "GET",
   }),
 
+  updateMyProfile: (data: {
+    fullName?: string;
+    mobileNumber?: string;
+    schoolName?: string;
+    city?: string;
+    state?: string;
+    password?: string;
+  }) =>
+    request<{ user: ApiUser }>("/auth/me", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
   adminSetPassword: (targetUserId: number, newPassword: string) =>
     request<{ message: string }>("/auth/admin/set-password", {
       method: "POST",
@@ -183,20 +250,51 @@ export const api = {
     }),
 
   // Admin User Management
-  getStudents: (search = "", page = 1, limit = 10) =>
-    request<{
+  getStudents: (
+    paramsOrSearch: string | StudentFilterParams = "",
+    page = 1,
+    limit = 10
+  ) => {
+    const q = new URLSearchParams();
+    if (typeof paramsOrSearch === "string") {
+      if (paramsOrSearch) q.set("search", paramsOrSearch);
+      q.set("page", String(page));
+      q.set("limit", String(limit));
+    } else {
+      if (paramsOrSearch.search) q.set("search", paramsOrSearch.search);
+      if (paramsOrSearch.status && paramsOrSearch.status !== "all") {
+        q.set("status", paramsOrSearch.status);
+      }
+      if (paramsOrSearch.classGrade && paramsOrSearch.classGrade !== "all") {
+        q.set("classGrade", paramsOrSearch.classGrade);
+      }
+      if (paramsOrSearch.startDate) q.set("startDate", paramsOrSearch.startDate);
+      if (paramsOrSearch.endDate) q.set("endDate", paramsOrSearch.endDate);
+      q.set("page", String(paramsOrSearch.page || page || 1));
+      q.set("limit", String(paramsOrSearch.limit || limit || 10));
+    }
+    return request<{
       students: StudentListItem[];
       pagination?: PaginationMeta;
       page?: number;
       limit?: number;
-    }>(
-      `/users/students?search=${encodeURIComponent(search)}&page=${page}&limit=${limit}`,
-      { method: "GET" }
-    ),
+    }>(`/users/students?${q.toString()}`, { method: "GET" });
+  },
+
+  getStudentDetails: (id: number) =>
+    request<StudentFullDetails>(`/users/students/${id}`, {
+      method: "GET",
+    }),
 
   toggleStudentStatus: (id: number) =>
     request<{ isActive: boolean }>(`/users/students/${id}/status`, {
       method: "PATCH",
+    }),
+
+  updateStudent: (id: number, data: UpdateStudentInput) =>
+    request<{ student: StudentListItem }>(`/users/students/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
     }),
 
   resetStudentDevice: (id: number, reason: string) =>

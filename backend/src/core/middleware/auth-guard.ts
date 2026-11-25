@@ -11,7 +11,11 @@ export interface AuthenticatedUser {
   email: string;
   fullName: string;
   role: "STUDENT" | "ADMIN";
+  mobileNumber: string | null;
   classGrade: string | null;
+  schoolName: string | null;
+  city: string | null;
+  state: string | null;
   isActive: boolean;
   sessionId: string;
   deviceId: number | null;
@@ -51,7 +55,11 @@ export async function requireAuth(
         email: users.email,
         fullName: users.full_name,
         role: users.role,
+        mobileNumber: users.mobile_number,
         classGrade: users.class_grade,
+        schoolName: users.school_name,
+        city: users.city,
+        state: users.state,
         isActive: users.is_active,
         deviceId: sessions.device_id,
         revokedAt: sessions.revoked_at,
@@ -83,7 +91,11 @@ export async function requireAuth(
       email: sessionData.email,
       fullName: sessionData.fullName,
       role: sessionData.role,
+      mobileNumber: sessionData.mobileNumber,
       classGrade: sessionData.classGrade,
+      schoolName: sessionData.schoolName,
+      city: sessionData.city,
+      state: sessionData.state,
       isActive: sessionData.isActive,
       sessionId: sessionData.sessionId,
       deviceId: sessionData.deviceId,

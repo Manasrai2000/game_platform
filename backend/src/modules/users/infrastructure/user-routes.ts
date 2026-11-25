@@ -8,6 +8,8 @@ const router = Router();
 router.use(requireAuth, requireAdmin);
 
 router.get("/students", (req, res, next) => userController.listStudents(req, res, next));
+router.get("/students/:id", (req, res, next) => userController.getStudentDetails(req, res, next));
+router.put("/students/:id", (req, res, next) => userController.updateStudent(req, res, next));
 router.patch("/students/:id/status", (req, res, next) => userController.toggleStatus(req, res, next));
 router.post("/students/:id/reset-device", (req, res, next) => userController.resetDevice(req, res, next));
 

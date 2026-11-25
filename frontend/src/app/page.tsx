@@ -96,8 +96,8 @@ export default function Home() {
         </h1>
 
         <p className="text-slate-600 text-base max-w-2xl mx-auto mb-10 leading-relaxed">
-          High-performance interactive learning platform designed exclusively for school students on desktop
-          and laptop browsers. Enforces atomic device binding, credential-sharing prevention, and instant Admin
+          High-performance interactive learning platform designed for school students across desktop,
+          laptop, tablet, and mobile browsers. Enforces atomic device binding, credential-sharing prevention, and instant Admin
           governance.
         </p>
 
@@ -138,10 +138,10 @@ export default function Home() {
             <div className="p-3 w-fit rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 mb-4 shadow-sm">
               <Laptop className="w-6 h-6" />
             </div>
-            <h3 className="font-semibold text-slate-900 text-base mb-2">Desktop & Laptop Only</h3>
+            <h3 className="font-semibold text-slate-900 text-base mb-2">Desktop, Tablet &amp; Mobile</h3>
             <p className="text-slate-600 text-xs leading-relaxed">
-              Enforced at request headers and client viewport. Tablets and smartphones are cleanly
-              gated to ensure an optimal interactive experience for school curriculum games.
+              Accessible across all devices. Students can seamlessly learn on their authorized laptop,
+              tablet, or smartphone browser with responsive touch support.
             </p>
           </div>
 

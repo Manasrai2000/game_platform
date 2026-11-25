@@ -1,9 +1,22 @@
 import { Request, Response, NextFunction } from "express";
 import { authUseCases } from "../application/auth-use-cases";
-import { registerSchema, loginSchema, adminSetPasswordSchema } from "../domain/user";
+import { registerSchema, loginSchema, adminSetPasswordSchema, sendOtpSchema, updateProfileSchema } from "../domain/user";
 import { env } from "../../../core/config/env";
 
 export class AuthController {
+  async sendOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const validated = sendOtpSchema.parse(req.body);
+      const result = await authUseCases.sendRegistrationOtp(validated);
+      res.status(200).json({
+        success: true,
+        message: result.message,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async register(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const validated = registerSchema.parse(req.body);
@@ -115,6 +128,21 @@ export class AuthController {
         user: req.user,
       },
     });
+  }
+
+  async updateMe(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const validated = updateProfileSchema.parse(req.body);
+      const userId = req.user!.id;
+      const updatedUser = await authUseCases.updateProfile(userId, validated);
+      res.status(200).json({
+        success: true,
+        message: "Profile updated successfully",
+        data: { user: updatedUser },
+      });
+    } catch (err) {
+      next(err);
+    }
   }
 
   async adminSetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {

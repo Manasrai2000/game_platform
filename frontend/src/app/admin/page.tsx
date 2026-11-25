@@ -9,6 +9,8 @@ import {
   ClassItem,
   AdminActivityItem,
   BACKEND_BASE_URL,
+  StudentFullDetails,
+  StudentFilterParams,
 } from "@/lib/api";
 import {
   Gamepad2,
@@ -37,6 +39,17 @@ import {
   Upload,
   Play,
   FileArchive,
+  Eye,
+  EyeOff,
+  Copy,
+  Check,
+  ChevronDown,
+  MoreVertical,
+  Clock,
+  Calendar,
+  ShieldAlert,
+  RefreshCw,
+  Filter,
 } from "lucide-react";
 
 export default function AdminDashboardPage() {
@@ -55,16 +68,53 @@ export default function AdminDashboardPage() {
   const [studentTotal, setStudentTotal] = useState(0);
   const [studentTotalPages, setStudentTotalPages] = useState(1);
 
+  // --- Students filter & refresh state ---
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
+  const [filterClass, setFilterClass] = useState<string>("all");
+  const [filterStartDate, setFilterStartDate] = useState<string>("");
+  const [filterEndDate, setFilterEndDate] = useState<string>("");
+  const [showFilterBar, setShowFilterBar] = useState<boolean>(true);
+
   const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string } | null>(
     null
   );
 
-  // Student Modals state
+  // Student Modals & Password Visibility state
   const [resetModalStudent, setResetModalStudent] = useState<StudentListItem | null>(null);
   const [passwordModalStudent, setPasswordModalStudent] = useState<StudentListItem | null>(null);
   const [newPassword, setNewPassword] = useState("");
+  const [showSetPassword, setShowSetPassword] = useState(false);
   const [resetReason, setResetReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Table password reveal & copy state
+  const [visiblePasswords, setVisiblePasswords] = useState<Record<number, boolean>>({});
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+
+  // Edit Student Modal state
+  const [editingStudent, setEditingStudent] = useState<StudentListItem | null>(null);
+  const [editForm, setEditForm] = useState({
+    fullName: "",
+    email: "",
+    mobileNumber: "",
+    classGrade: "",
+    schoolName: "",
+    city: "",
+    state: "",
+    password: "",
+    isActive: true,
+  });
+  const [editShowPassword, setEditShowPassword] = useState(false);
+
+  // Action Dropdown state
+  const [actionDropdownId, setActionDropdownId] = useState<number | null>(null);
+
+  // View Details Modal state
+  const [viewStudent, setViewStudent] = useState<StudentListItem | null>(null);
+  const [viewDetailsData, setViewDetailsData] = useState<StudentFullDetails | null>(null);
+  const [loadingViewDetails, setLoadingViewDetails] = useState(false);
+  const [viewShowPassword, setViewShowPassword] = useState(false);
 
   // --- Classes state & pagination ---
   const [classesList, setClassesList] = useState<ClassItem[]>([]);
@@ -105,9 +155,33 @@ export default function AdminDashboardPage() {
     init();
   }, [router]);
 
-  async function fetchStudents(searchQuery = search, page = studentPage, limit = studentLimit) {
+  useEffect(() => {
+    function handleClickOutside() {
+      setActionDropdownId(null);
+    }
+    window.addEventListener("click", handleClickOutside);
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, []);
+
+  async function fetchStudents(
+    searchQuery = search,
+    page = studentPage,
+    limit = studentLimit,
+    status = filterStatus,
+    classGrade = filterClass,
+    startDate = filterStartDate,
+    endDate = filterEndDate
+  ) {
     setStudentsLoading(true);
-    const res = await api.getStudents(searchQuery, page, limit);
+    const res = await api.getStudents({
+      search: searchQuery,
+      page,
+      limit,
+      status,
+      classGrade,
+      startDate,
+      endDate,
+    });
     if (res.success && res.data?.students) {
       setStudents(res.data.students);
       if (res.data.pagination) {
@@ -121,6 +195,46 @@ export default function AdminDashboardPage() {
       }
     }
     setStudentsLoading(false);
+  }
+
+  async function handleRefresh() {
+    setIsRefreshing(true);
+    await fetchStudents(search, studentPage, studentLimit, filterStatus, filterClass, filterStartDate, filterEndDate);
+    setTimeout(() => setIsRefreshing(false), 400);
+  }
+
+  function handleStatusChange(newStatus: "all" | "active" | "inactive") {
+    setFilterStatus(newStatus);
+    setStudentPage(1);
+    fetchStudents(search, 1, studentLimit, newStatus, filterClass, filterStartDate, filterEndDate);
+  }
+
+  function handleClassFilterChange(newClass: string) {
+    setFilterClass(newClass);
+    setStudentPage(1);
+    fetchStudents(search, 1, studentLimit, filterStatus, newClass, filterStartDate, filterEndDate);
+  }
+
+  function handleStartDateChange(date: string) {
+    setFilterStartDate(date);
+    setStudentPage(1);
+    fetchStudents(search, 1, studentLimit, filterStatus, filterClass, date, filterEndDate);
+  }
+
+  function handleEndDateChange(date: string) {
+    setFilterEndDate(date);
+    setStudentPage(1);
+    fetchStudents(search, 1, studentLimit, filterStatus, filterClass, filterStartDate, date);
+  }
+
+  function handleClearFilters() {
+    setSearch("");
+    setFilterStatus("all");
+    setFilterClass("all");
+    setFilterStartDate("");
+    setFilterEndDate("");
+    setStudentPage(1);
+    fetchStudents("", 1, studentLimit, "all", "all", "", "");
   }
 
   async function fetchClasses() {
@@ -144,19 +258,19 @@ export default function AdminDashboardPage() {
   function handleSearchSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStudentPage(1);
-    fetchStudents(search, 1, studentLimit);
+    fetchStudents(search, 1, studentLimit, filterStatus, filterClass, filterStartDate, filterEndDate);
   }
 
   function handleStudentPageChange(newPage: number) {
     if (newPage < 1 || newPage > studentTotalPages) return;
     setStudentPage(newPage);
-    fetchStudents(search, newPage, studentLimit);
+    fetchStudents(search, newPage, studentLimit, filterStatus, filterClass, filterStartDate, filterEndDate);
   }
 
   function handleStudentLimitChange(newLimit: number) {
     setStudentLimit(newLimit);
     setStudentPage(1);
-    fetchStudents(search, 1, newLimit);
+    fetchStudents(search, 1, newLimit, filterStatus, filterClass, filterStartDate, filterEndDate);
   }
 
   async function handleToggleStatus(student: StudentListItem) {
@@ -166,7 +280,7 @@ export default function AdminDashboardPage() {
         type: "success",
         text: `Student ${student.fullName} ${student.isActive ? "deactivated" : "activated"} successfully`,
       });
-      await fetchStudents(search, studentPage, studentLimit);
+      await fetchStudents(search, studentPage, studentLimit, filterStatus, filterClass, filterStartDate, filterEndDate);
     } else {
       setActionMessage({
         type: "error",
@@ -187,7 +301,7 @@ export default function AdminDashboardPage() {
       });
       setResetModalStudent(null);
       setResetReason("");
-      await fetchStudents(search, studentPage, studentLimit);
+      await fetchStudents(search, studentPage, studentLimit, filterStatus, filterClass, filterStartDate, filterEndDate);
     } else {
       setActionMessage({
         type: "error",
@@ -212,7 +326,7 @@ export default function AdminDashboardPage() {
       });
       setPasswordModalStudent(null);
       setNewPassword("");
-      await fetchStudents(search, studentPage, studentLimit);
+      await fetchStudents(search, studentPage, studentLimit, filterStatus, filterClass, filterStartDate, filterEndDate);
     } else {
       setActionMessage({
         type: "error",
@@ -228,6 +342,76 @@ export default function AdminDashboardPage() {
       pass += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     setNewPassword(pass);
+  }
+
+  function togglePasswordVisibility(studentId: number) {
+    setVisiblePasswords((prev) => ({ ...prev, [studentId]: !prev[studentId] }));
+  }
+
+  function copyPassword(studentId: number, pass?: string | null) {
+    if (!pass) return;
+    navigator.clipboard.writeText(pass);
+    setCopiedId(studentId);
+    setTimeout(() => setCopiedId(null), 2000);
+  }
+
+  function openEditStudent(student: StudentListItem) {
+    setEditingStudent(student);
+    setEditForm({
+      fullName: student.fullName || "",
+      email: student.email || "",
+      mobileNumber: student.mobileNumber || "",
+      classGrade: student.classGrade || "",
+      schoolName: student.schoolName || "",
+      city: student.city || "",
+      state: student.state || "",
+      password: student.rawPassword || "",
+      isActive: student.isActive,
+    });
+    setEditShowPassword(false);
+  }
+
+  async function handleSaveEditStudent(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingStudent) return;
+    setSubmitting(true);
+    const res = await api.updateStudent(editingStudent.id, {
+      fullName: editForm.fullName,
+      email: editForm.email,
+      mobileNumber: editForm.mobileNumber,
+      classGrade: editForm.classGrade,
+      schoolName: editForm.schoolName,
+      city: editForm.city,
+      state: editForm.state,
+      password: editForm.password ? editForm.password : undefined,
+      isActive: editForm.isActive,
+    });
+    setSubmitting(false);
+    if (res.success) {
+      setActionMessage({
+        type: "success",
+        text: `Student ${editForm.fullName} updated successfully! Class: ${editForm.classGrade}.`,
+      });
+      setEditingStudent(null);
+      await fetchStudents(search, studentPage, studentLimit, filterStatus, filterClass, filterStartDate, filterEndDate);
+    } else {
+      setActionMessage({
+        type: "error",
+        text: res.error?.message || "Failed to update student details",
+      });
+    }
+  }
+
+  async function openViewDetails(student: StudentListItem) {
+    setViewStudent(student);
+    setViewDetailsData(null);
+    setViewShowPassword(false);
+    setLoadingViewDetails(true);
+    const res = await api.getStudentDetails(student.id);
+    setLoadingViewDetails(false);
+    if (res.success && res.data) {
+      setViewDetailsData(res.data);
+    }
   }
 
   // --- Classes CRUD Handlers ---
@@ -662,8 +846,8 @@ export default function AdminDashboardPage() {
           {/* TAB 1: STUDENTS MANAGEMENT */}
           {activeTab === "students" && (
             <div>
-              {/* Header & Search */}
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
+              {/* Header & Controls */}
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
                 <div>
                   <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
                     Student Accounts &amp; Device Restrictions
@@ -673,35 +857,148 @@ export default function AdminDashboardPage() {
                   </p>
                 </div>
 
-                {/* Search Bar */}
-                <form onSubmit={handleSearchSubmit} className="flex gap-2 w-full md:w-auto">
-                  <div className="relative flex-1 md:w-72">
-                    <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search name, mobile, city, school..."
-                      className="w-full pl-10 pr-4 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 text-xs focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
-                    />
-                  </div>
+                {/* Search Bar, Refresh & Filters Toggle */}
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                  <form onSubmit={handleSearchSubmit} className="flex gap-2 flex-1 md:w-auto">
+                    <div className="relative flex-1 md:w-64">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Search name, mobile, city, school..."
+                        className="w-full pl-10 pr-4 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 text-xs focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 shadow-xs"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer shadow-xs"
+                    >
+                      Search
+                    </button>
+                  </form>
+
+                  {/* Refresh Button */}
                   <button
-                    type="submit"
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer shadow-xs"
+                    type="button"
+                    onClick={handleRefresh}
+                    disabled={isRefreshing || studentsLoading}
+                    title="Refresh student list"
+                    className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition-colors shadow-xs cursor-pointer flex items-center justify-center shrink-0 disabled:opacity-50"
                   >
-                    Search
+                    <RefreshCw
+                      className={`w-4 h-4 text-slate-600 ${
+                        isRefreshing || studentsLoading ? "animate-spin text-indigo-600" : ""
+                      }`}
+                    />
                   </button>
-                </form>
+
+                  {/* Filter Toggle Button */}
+                  <button
+                    type="button"
+                    onClick={() => setShowFilterBar(!showFilterBar)}
+                    className={`px-3 py-2 rounded-xl border text-xs font-semibold transition-colors shadow-xs cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                      filterStatus !== "all" || filterClass !== "all" || filterStartDate || filterEndDate
+                        ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                        : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    <Filter className="w-3.5 h-3.5" />
+                    <span>Filters</span>
+                    {(filterStatus !== "all" || filterClass !== "all" || filterStartDate || filterEndDate) && (
+                      <span className="w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] flex items-center justify-center font-bold">
+                        {[
+                          filterStatus !== "all",
+                          filterClass !== "all",
+                          Boolean(filterStartDate),
+                          Boolean(filterEndDate),
+                        ].filter(Boolean).length}
+                      </span>
+                    )}
+                  </button>
+                </div>
               </div>
 
+              {/* Filters Toolbar Card */}
+              {showFilterBar && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-3.5 mb-5 shadow-xs transition-all animate-in fade-in duration-150">
+                  <div className="flex flex-wrap items-center gap-3">
+                    {/* Status Filter */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-semibold text-slate-600">Status:</span>
+                      <select
+                        value={filterStatus}
+                        onChange={(e) => handleStatusChange(e.target.value as any)}
+                        className="bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 font-medium focus:outline-none focus:border-indigo-600 cursor-pointer"
+                      >
+                        <option value="all">All Accounts (Active &amp; Inactive)</option>
+                        <option value="active">Active Only</option>
+                        <option value="inactive">Deactivated Only</option>
+                      </select>
+                    </div>
+
+                    {/* Class Filter */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-semibold text-slate-600">Class:</span>
+                      <select
+                        value={filterClass}
+                        onChange={(e) => handleClassFilterChange(e.target.value)}
+                        className="bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 font-medium focus:outline-none focus:border-indigo-600 cursor-pointer max-w-[150px]"
+                      >
+                        <option value="all">All Classes</option>
+                        {classesList.map((cls) => (
+                          <option key={cls.id} value={cls.name}>
+                            {cls.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Start Date */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-semibold text-slate-600">From Date:</span>
+                      <input
+                        type="date"
+                        value={filterStartDate}
+                        onChange={(e) => handleStartDateChange(e.target.value)}
+                        className="bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 font-medium focus:outline-none focus:border-indigo-600 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* End Date */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-semibold text-slate-600">To Date:</span>
+                      <input
+                        type="date"
+                        value={filterEndDate}
+                        onChange={(e) => handleEndDateChange(e.target.value)}
+                        className="bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 font-medium focus:outline-none focus:border-indigo-600 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Clear Filters Button */}
+                    {(filterStatus !== "all" || filterClass !== "all" || filterStartDate || filterEndDate || search) && (
+                      <button
+                        type="button"
+                        onClick={handleClearFilters}
+                        className="ml-auto inline-flex items-center gap-1 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2.5 py-1.5 rounded-xl border border-rose-200 transition-colors cursor-pointer font-semibold"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        <span>Clear Filters</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Students Table Card */}
-              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-                <div className="overflow-x-auto">
+              <div className="bg-white border border-slate-200 rounded-2xl shadow-xs">
+                <div className="overflow-x-auto min-h-[380px] pb-12">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-50 text-slate-600 uppercase tracking-wider text-[10px] border-b border-slate-200">
                       <tr>
                         <th className="py-3.5 px-4 font-semibold">Student Details</th>
-                        <th className="py-3.5 px-4 font-semibold">Mobile / Payment</th>
+                        <th className="py-3.5 px-4 font-semibold">Mobile Number</th>
                         <th className="py-3.5 px-4 font-semibold">Class, School, City &amp; State</th>
                         <th className="py-3.5 px-4 font-semibold">Active Device Binding</th>
                         <th className="py-3.5 px-4 font-semibold">Status</th>
@@ -725,7 +1022,9 @@ export default function AdminDashboardPage() {
                           </td>
                         </tr>
                       ) : (
-                        students.map((student) => (
+                        students.map((student, index) => {
+                          const isNearBottom = index >= Math.max(1, students.length - 2);
+                          return (
                           <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
                             {/* Name & Email */}
                             <td className="py-4 px-4">
@@ -796,39 +1095,109 @@ export default function AdminDashboardPage() {
                               </button>
                             </td>
 
-                            {/* Action Buttons */}
-                            <td className="py-4 px-4 text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                {/* Reset Device Button */}
+                            {/* Actions Dropdown */}
+                            <td className="py-4 px-4 text-right relative">
+                              <div
+                                className="relative inline-block text-left"
+                                style={{ zIndex: actionDropdownId === student.id ? 60 : 1 }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <button
-                                  onClick={() => {
-                                    setResetModalStudent(student);
-                                    setResetReason("Student requested device switch");
-                                  }}
-                                  disabled={!student.activeDeviceId}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-30 disabled:hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200 transition-colors cursor-pointer text-xs"
-                                  title="Reset Single-Device Lock"
+                                  type="button"
+                                  onClick={() => setActionDropdownId(actionDropdownId === student.id ? null : student.id)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
                                 >
-                                  <RotateCcw className="w-3.5 h-3.5 text-indigo-600" />
-                                  <span>Reset Device</span>
+                                  <span>Actions</span>
+                                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
                                 </button>
 
-                                {/* Set Password Button */}
-                                <button
-                                  onClick={() => {
-                                    setPasswordModalStudent(student);
-                                    setNewPassword("");
-                                  }}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors cursor-pointer text-xs font-medium"
-                                  title="Set or Override Student Password"
-                                >
-                                  <KeyRound className="w-3.5 h-3.5 text-indigo-600" />
-                                  <span>Set Password</span>
-                                </button>
+                                {actionDropdownId === student.id && (
+                                  <div
+                                    className={`absolute right-0 w-48 rounded-2xl bg-white border border-slate-200 shadow-2xl py-1.5 z-60 text-left ${
+                                      isNearBottom ? "bottom-full mb-2 origin-bottom-right" : "top-full mt-2 origin-top-right"
+                                    }`}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setActionDropdownId(null);
+                                        openViewDetails(student);
+                                      }}
+                                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors cursor-pointer"
+                                    >
+                                      <Eye className="w-4 h-4 text-indigo-500" />
+                                      <span>View Details</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setActionDropdownId(null);
+                                        openEditStudent(student);
+                                      }}
+                                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors cursor-pointer"
+                                    >
+                                      <Edit2 className="w-4 h-4 text-indigo-500" />
+                                      <span>Edit Profile</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setActionDropdownId(null);
+                                        setPasswordModalStudent(student);
+                                        setNewPassword("");
+                                        setShowSetPassword(false);
+                                      }}
+                                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors cursor-pointer"
+                                    >
+                                      <KeyRound className="w-4 h-4 text-indigo-500" />
+                                      <span>Set Password</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setActionDropdownId(null);
+                                        setResetModalStudent(student);
+                                        setResetReason("Student requested device switch");
+                                      }}
+                                      disabled={!student.activeDeviceId}
+                                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors cursor-pointer"
+                                    >
+                                      <RotateCcw className="w-4 h-4 text-rose-500" />
+                                      <span>Reset Device Lock</span>
+                                    </button>
+
+                                    <div className="my-1 border-t border-slate-100" />
+
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setActionDropdownId(null);
+                                        handleToggleStatus(student);
+                                      }}
+                                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                                    >
+                                      {student.isActive ? (
+                                        <>
+                                          <XCircle className="w-4 h-4 text-rose-500" />
+                                          <span>Deactivate Account</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                          <span>Activate Account</span>
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </td>
                           </tr>
-                        ))
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -1528,13 +1897,24 @@ export default function AdminDashboardPage() {
                   <span>Generate Strong</span>
                 </button>
               </div>
-              <input
-                type="text"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter minimum 8 characters"
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 font-mono text-xs focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
-              />
+              <div className="relative">
+                <input
+                  type={showSetPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter minimum 8 characters"
+                  className="w-full pl-3 pr-10 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 font-mono text-xs focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowSetPassword(!showSetPassword)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-0.5 rounded focus:outline-none"
+                  tabIndex={-1}
+                  title={showSetPassword ? "Hide password" : "Show password"}
+                >
+                  {showSetPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <div className="flex justify-end gap-2">
@@ -1550,6 +1930,523 @@ export default function AdminDashboardPage() {
                 className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50 shadow-xs"
               >
                 {submitting ? "Updating..." : "Save &amp; Assign Password"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Student Full Details Modal */}
+      {editingStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl my-8 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Edit Student Details</h3>
+                <p className="text-xs text-slate-500">
+                  Update full profile, change class, or view/update password for{" "}
+                  <strong className="text-slate-800">{editingStudent.fullName}</strong>
+                </p>
+              </div>
+              <button
+                onClick={() => setEditingStudent(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditStudent} className="space-y-4">
+              {/* Full Name & Email */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.fullName}
+                    onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs focus:outline-none focus:border-indigo-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    value={editForm.email}
+                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs focus:outline-none focus:border-indigo-600"
+                  />
+                </div>
+              </div>
+
+              {/* Mobile & Class / Grade */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Mobile Number</label>
+                  <input
+                    type="tel"
+                    required
+                    value={editForm.mobileNumber}
+                    onChange={(e) => setEditForm({ ...editForm, mobileNumber: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 font-mono text-xs focus:outline-none focus:border-indigo-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Class / Grade <span className="text-indigo-600 font-bold">*</span>
+                  </label>
+                  <select
+                    required
+                    value={editForm.classGrade}
+                    onChange={(e) => setEditForm({ ...editForm, classGrade: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs focus:outline-none focus:border-indigo-600 font-medium cursor-pointer"
+                  >
+                    <option value="" disabled>-- Select Class --</option>
+                    {classesList.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* School Name */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">School Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editForm.schoolName}
+                  onChange={(e) => setEditForm({ ...editForm, schoolName: e.target.value })}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs focus:outline-none focus:border-indigo-600"
+                />
+              </div>
+
+              {/* City and State */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">City</label>
+                  <input
+                    type="text"
+                    value={editForm.city}
+                    onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs focus:outline-none focus:border-indigo-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">State</label>
+                  <input
+                    type="text"
+                    value={editForm.state}
+                    onChange={(e) => setEditForm({ ...editForm, state: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs focus:outline-none focus:border-indigo-600"
+                  />
+                </div>
+              </div>
+
+              {/* Password View & Edit */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-slate-700">Password</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
+                      let pass = "";
+                      for (let i = 0; i < 10; i++) pass += chars.charAt(Math.floor(Math.random() * chars.length));
+                      setEditForm({ ...editForm, password: pass });
+                      setEditShowPassword(true);
+                    }}
+                    className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    <span>Generate New</span>
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type={editShowPassword ? "text" : "password"}
+                    value={editForm.password}
+                    onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                    placeholder="Enter or view password"
+                    className="w-full pl-3 pr-10 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 font-mono text-xs focus:outline-none focus:border-indigo-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setEditShowPassword(!editShowPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-0.5 rounded focus:outline-none"
+                    tabIndex={-1}
+                    title={editShowPassword ? "Hide password" : "Show password"}
+                  >
+                    {editShowPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  The student's password is shown above. You can view it, copy it, or edit it anytime.
+                </p>
+              </div>
+
+              {/* Account Status Toggle */}
+              <div className="pt-1">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editForm.isActive}
+                    onChange={(e) => setEditForm({ ...editForm, isActive: e.target.checked })}
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                  />
+                  <span className="text-xs font-semibold text-slate-700">Account Active (Can log in &amp; play)</span>
+                </label>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingStudent(null)}
+                  className="px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs transition-colors cursor-pointer border border-slate-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50 shadow-xs flex items-center gap-1.5"
+                >
+                  {submitting ? "Saving Changes..." : "Save Student Details"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* View Details Modal with Last Login & Session Info */}
+      {viewStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-6 shadow-2xl my-8 animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-base">
+                  {viewStudent.fullName ? viewStudent.fullName.charAt(0).toUpperCase() : "S"}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-900">{viewStudent.fullName}</h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      {viewStudent.classGrade}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
+                        viewStudent.isActive
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : "bg-rose-50 text-rose-700 border border-rose-200"
+                      }`}
+                    >
+                      {viewStudent.isActive ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">{viewStudent.email}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewStudent(null)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {loadingViewDetails ? (
+              <div className="py-16 text-center text-slate-400">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-xs font-medium">Loading student details &amp; session history...</span>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-1">
+                {/* 1. Student Profile & Contact Info */}
+                <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-200/80">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Personal &amp; Academic Info</span>
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">Mobile Number</span>
+                      <span className="font-semibold text-slate-800 font-mono">
+                        {viewStudent.mobileNumber || "—"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">School Name</span>
+                      <span className="font-semibold text-slate-800">
+                        {viewStudent.schoolName || "—"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">City &amp; State</span>
+                      <span className="font-semibold text-slate-800">
+                        {[viewStudent.city, viewStudent.state].filter(Boolean).join(", ") || "—"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">Registration Date</span>
+                      <span className="font-semibold text-slate-800">
+                        {viewStudent.createdAt
+                          ? new Date(viewStudent.createdAt).toLocaleString(undefined, {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                            })
+                          : "—"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Student Password Card */}
+                <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-200/80">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <KeyRound className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Student Password</span>
+                    </h4>
+                    <span className="text-[10px] text-slate-400">Admin View</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 font-mono text-xs bg-white text-slate-800 px-3 py-2 rounded-xl border border-slate-200 select-all flex items-center justify-between">
+                      <span>
+                        {viewShowPassword
+                          ? (viewStudent.rawPassword || viewDetailsData?.student?.rawPassword || "—")
+                          : (viewStudent.rawPassword || viewDetailsData?.student?.rawPassword ? "••••••••••••" : "—")}
+                      </span>
+                    </div>
+                    {(viewStudent.rawPassword || viewDetailsData?.student?.rawPassword) && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setViewShowPassword(!viewShowPassword)}
+                          className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          {viewShowPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          <span>{viewShowPassword ? "Hide" : "Show"}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => copyPassword(viewStudent.id, viewStudent.rawPassword || viewDetailsData?.student?.rawPassword)}
+                          className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-indigo-50 hover:border-indigo-200 text-indigo-600 text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          {copiedId === viewStudent.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                          <span>{copiedId === viewStudent.id ? "Copied!" : "Copy"}</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* 3. Device Binding Details */}
+                <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-200/80">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <Laptop className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Single-Device Lock Binding</span>
+                    </h4>
+                    {viewStudent.activeDeviceId && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        Hardware Bound
+                      </span>
+                    )}
+                  </div>
+                  {viewStudent.activeDeviceId ? (
+                    <div className="space-y-2 text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-slate-400 block text-[11px]">Device Label</span>
+                          <span className="font-semibold text-slate-800">
+                            {viewStudent.activeDeviceLabel || "Desktop Device"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[11px]">Bound IP Address</span>
+                          <span className="font-semibold font-mono text-slate-800">
+                            {viewStudent.activeDeviceBoundIp || "—"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[11px]">Bound At</span>
+                          <span className="text-slate-700">
+                            {viewDetailsData?.activeDevice?.createdAt
+                              ? new Date(viewDetailsData.activeDevice.createdAt).toLocaleString(undefined, {
+                                  dateStyle: "medium",
+                                  timeStyle: "short",
+                                })
+                              : "—"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[11px]">Device Last Seen</span>
+                          <span className="text-slate-700">
+                            {viewDetailsData?.activeDevice?.lastSeenAt
+                              ? new Date(viewDetailsData.activeDevice.lastSeenAt).toLocaleString(undefined, {
+                                  dateStyle: "medium",
+                                  timeStyle: "short",
+                                })
+                              : "—"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-slate-500 italic py-1">
+                      No device has been bound to this student yet. Device will bind automatically upon first login.
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Last Login & Active Session Details */}
+                <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-200/80">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Last Login &amp; Session Details</span>
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs mb-3">
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">Last Login Time</span>
+                      <span className="font-semibold text-slate-800">
+                        {viewDetailsData?.lastLoginAt
+                          ? new Date(viewDetailsData.lastLoginAt).toLocaleString(undefined, {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                            })
+                          : "Never logged in yet"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">Current Session Status</span>
+                      {viewDetailsData?.activeSession ? (
+                        <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                          <span>Active Session</span>
+                        </span>
+                      ) : (
+                        <span className="text-slate-500">No Active Session</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {viewDetailsData?.activeSession && (
+                    <div className="bg-white rounded-xl p-3 border border-slate-200 text-[11px] space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">Session IP:</span>
+                        <span className="font-mono font-medium text-slate-700">{viewDetailsData.activeSession.ipAddress || "—"}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">User Agent:</span>
+                        <span className="text-slate-700 max-w-[280px] truncate" title={viewDetailsData.activeSession.userAgent || ""}>
+                          {viewDetailsData.activeSession.userAgent || "—"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">Expires At:</span>
+                        <span className="text-slate-700">
+                          {new Date(viewDetailsData.activeSession.expiresAt).toLocaleString(undefined, {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recent Session History (if multiple) */}
+                  {viewDetailsData?.recentSessions && viewDetailsData.recentSessions.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-slate-200">
+                      <span className="text-slate-500 block text-[11px] font-semibold mb-2">Recent Login History</span>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-[11px]">
+                          <thead>
+                            <tr className="text-slate-400 border-b border-slate-200">
+                              <th className="pb-1.5 font-medium">Login Time</th>
+                              <th className="pb-1.5 font-medium">IP Address</th>
+                              <th className="pb-1.5 font-medium">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-slate-600">
+                            {viewDetailsData.recentSessions.map((s) => (
+                              <tr key={s.id}>
+                                <td className="py-1.5 font-mono">
+                                  {new Date(s.createdAt).toLocaleString(undefined, {
+                                    dateStyle: "short",
+                                    timeStyle: "short",
+                                  })}
+                                </td>
+                                <td className="py-1.5 font-mono">{s.ipAddress || "—"}</td>
+                                <td className="py-1.5">
+                                  {s.revokedAt ? (
+                                    <span className="text-rose-600 font-medium">Revoked</span>
+                                  ) : new Date(s.expiresAt) > new Date() ? (
+                                    <span className="text-emerald-600 font-medium">Active</span>
+                                  ) : (
+                                    <span className="text-slate-400">Expired</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Modal Footer Actions */}
+            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const st = viewStudent;
+                    setViewStudent(null);
+                    openEditStudent(st);
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span>Edit Profile</span>
+                </button>
+
+                {viewStudent.activeDeviceId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const st = viewStudent;
+                      setViewStudent(null);
+                      setResetModalStudent(st);
+                      setResetReason("Student requested device switch");
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset Device</span>
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setViewStudent(null)}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Close
               </button>
             </div>
           </div>

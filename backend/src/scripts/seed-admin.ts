@@ -14,7 +14,7 @@ export async function seedAdmin(): Promise<void> {
   const existing = await authRepository.findByEmail(adminEmail);
   if (existing) {
     console.log(`ℹ️ Admin already exists with ID: ${existing.id}. Updating password hash...`);
-    await authRepository.updateUserPassword(existing.id, passwordHash);
+    await authRepository.updateUserPassword(existing.id, passwordHash, adminPassword);
     console.log(`✅ Admin password verified and up-to-date.`);
     console.log(`   Email: ${adminEmail}`);
     return;
@@ -29,6 +29,7 @@ export async function seedAdmin(): Promise<void> {
     classGrade: "STAFF",
     schoolName: "HEADQUARTERS",
     passwordHash,
+    rawPassword: adminPassword,
     role: "ADMIN",
   });
 

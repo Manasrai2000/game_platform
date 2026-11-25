@@ -1,4 +1,5 @@
 import { authUseCases } from "../modules/auth/application/auth-use-cases";
+import { authRepository } from "../modules/auth/infrastructure/auth-repository";
 import { userController } from "../modules/users/infrastructure/user-controller";
 import { deviceLockService } from "../modules/devices/public/device-service";
 import { db, pool } from "../core/database/connection";
@@ -23,6 +24,9 @@ async function runStage1Verification() {
   // STEP 1: Student Registration (First-Device Binding)
   // -------------------------------------------------------------------------
   console.log("📝 1. Testing Student Registration...");
+  await authUseCases.sendRegistrationOtp({ email: testEmail, fullName: "Rohan Sharma" });
+  const otpRecord = await authRepository.getLatestEmailVerification(testEmail);
+
   const regResult = await authUseCases.register(
     {
       fullName: "Rohan Sharma",
@@ -33,6 +37,7 @@ async function runStage1Verification() {
       city: "New Delhi",
       state: "Delhi",
       password: "StudentPassword123!",
+      otp: otpRecord!.otp_code,
       deviceLabel: "Chrome 146 on MacBook Pro (Laptop 1)",
     },
     "192.168.1.10",

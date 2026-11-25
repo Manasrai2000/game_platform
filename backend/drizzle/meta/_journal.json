@@ -22,6 +22,20 @@
       "when": 1795428558775,
       "tag": "0002_cloudy_fixer",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1795507727614,
+      "tag": "0003_married_randall_flagg",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1795523767195,
+      "tag": "0004_chief_sabretooth",
+      "breakpoints": true
     }
   ]
 }

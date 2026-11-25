@@ -5,12 +5,14 @@ import { requireAuth, requireAdmin } from "../../../core/middleware/auth-guard";
 const router = Router();
 
 // Public routes
+router.post("/send-otp", (req, res, next) => authController.sendOtp(req, res, next));
 router.post("/register", (req, res, next) => authController.register(req, res, next));
 router.post("/login", (req, res, next) => authController.login(req, res, next));
 router.post("/logout", (req, res, next) => authController.logout(req, res, next));
 
 // Authenticated current user profile
 router.get("/me", requireAuth, (req, res) => authController.me(req, res));
+router.put("/me", requireAuth, (req, res, next) => authController.updateMe(req, res, next));
 
 // Admin-controlled password reset
 router.post(
