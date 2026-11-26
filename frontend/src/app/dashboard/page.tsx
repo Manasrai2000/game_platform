@@ -553,7 +553,7 @@ export default function StudentDashboardPage() {
               <div className="w-full bg-slate-100 h-2 sm:h-2.5 rounded-full overflow-hidden p-0.5 shadow-inner border border-slate-200/80">
                 <div
                   className="bg-indigo-600 h-full rounded-full transition-all duration-700 shadow-sm"
-                  style={{ width: `${Math.max(4, progressPercent)}%` }}
+                  style={{ width: `${progressPercent}%` }}
                 />
               </div>
             </div>
