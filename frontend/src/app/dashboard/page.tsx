@@ -31,7 +31,6 @@ import {
   AlertCircle,
   Loader2,
   Zap,
-  ArrowLeft,
   Crown,
   Gift,
   Sparkles,
@@ -186,14 +185,14 @@ export default function StudentDashboardPage() {
     const handlePopState = () => {
       // Re-push history state forward immediately to neutralize the Back action
       window.history.pushState({ inGame: true }, "", window.location.href);
-      setToastMessage("⚠️ Browser Back is disabled during the game! Use 'Back to Dashboard' above to exit.");
+      setToastMessage("⚠️ Browser Back is disabled during the game! Use the 'Exit' button above to return.");
       setTimeout(() => setToastMessage(null), 4000);
     };
 
     // 3. Intercept accidental page refresh or tab close
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
-      e.returnValue = "Your game is currently in progress. Please use 'Back to Dashboard' to exit safely.";
+      e.returnValue = "Your game is currently in progress. Please use the 'Exit' button to leave safely.";
       return e.returnValue;
     };
 
@@ -216,7 +215,7 @@ export default function StudentDashboardPage() {
         (e.metaKey && (e.key === "ArrowLeft" || e.key === "["))
       ) {
         e.preventDefault();
-        setToastMessage("⚠️ Browser Back shortcut is disabled during the game! Use 'Back to Dashboard'.");
+        setToastMessage("⚠️ Browser Back shortcut is disabled during the game! Use the 'Exit' button.");
         setTimeout(() => setToastMessage(null), 3500);
       }
     };
@@ -932,27 +931,16 @@ export default function StudentDashboardPage() {
       {/* FULL-PAGE GAME ACTIVITY VIEW */}
       {isPlayingGame && journeyData?.activity && (
         <div className="fixed inset-0 z-50 flex flex-col bg-slate-950 w-screen h-screen overflow-hidden select-none">
-          {/* Top Navigation Bar with Back Button */}
+          {/* Top Navigation Bar */}
           <header className="h-14 sm:h-16 px-4 sm:px-6 bg-slate-900 border-b border-slate-800 text-white flex items-center justify-between shrink-0 shadow-lg z-20">
-            {/* Left: Back to Dashboard Button & Activity Details */}
+            {/* Left: Activity Details */}
             <div className="flex items-center gap-3 sm:gap-4">
-              <button
-                onClick={handleExitGame}
-                className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-bold shadow-md transition-all hover:scale-102 active:scale-98 cursor-pointer group"
-                title="Back to Student Dashboard"
-              >
-                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                <span>Back to Dashboard</span>
-              </button>
-
-              <div className="h-6 w-px bg-slate-700 hidden sm:block" />
-
               <div className="flex items-center gap-2.5">
-                <div className="p-1.5 rounded-lg bg-slate-800 text-indigo-400 border border-slate-700 hidden sm:flex">
+                <div className="p-1.5 rounded-lg bg-slate-800 text-indigo-400 border border-slate-700 flex">
                   <Gamepad2 className="w-4 h-4" />
                 </div>
                 <div>
-                  <h1 className="text-xs sm:text-sm font-bold text-white truncate max-w-[150px] sm:max-w-xs md:max-w-md">
+                  <h1 className="text-xs sm:text-sm font-bold text-white truncate max-w-[180px] sm:max-w-xs md:max-w-md">
                     {journeyData.activity.title}
                   </h1>
                   <div className="flex items-center gap-2 text-[10px] text-slate-400">
