@@ -34,6 +34,11 @@ const envSchema = z.object({
   MAIL_USER: z.string().default(""),
   MAIL_PASS: z.string().default(""),
   MAIL_FROM: z.string().default("Education Game Platform <no-reply@example.com>"),
+
+  // Payment Gateway (Razorpay)
+  RAZORPAY_KEY_ID: z.string().default(""),
+  RAZORPAY_KEY_SECRET: z.string().default(""),
+  RAZORPAY_WEBHOOK_SECRET: z.string().default(""),
 });
 
 const parsed = envSchema.safeParse(process.env);

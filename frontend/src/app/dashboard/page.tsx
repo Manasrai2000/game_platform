@@ -1,8 +1,17 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, ApiUser, StudentJourneyResponse, BACKEND_BASE_URL } from "@/lib/api";
+import {
+  api,
+  ApiUser,
+  StudentJourneyResponse,
+  ReferralStatsResponse,
+  BACKEND_BASE_URL,
+} from "@/lib/api";
+import { SubscriptionPaywall } from "@/components/SubscriptionPaywall";
+import { ReferAndEarnView } from "@/components/ReferAndEarnView";
 import {
   School,
   BookOpen,
@@ -23,6 +32,12 @@ import {
   Loader2,
   Zap,
   ArrowLeft,
+  Crown,
+  Gift,
+  Sparkles,
+  Copy,
+  IndianRupee,
+  LifeBuoy,
 } from "lucide-react";
 
 export default function StudentDashboardPage() {
@@ -34,6 +49,10 @@ export default function StudentDashboardPage() {
   const [journeyData, setJourneyData] = useState<StudentJourneyResponse | null>(null);
   const [loadingJourney, setLoadingJourney] = useState(true);
   const [isPlayingGame, setIsPlayingGame] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [showReferAndEarn, setShowReferAndEarn] = useState(false);
+  const [referralStats, setReferralStats] = useState<ReferralStatsResponse | null>(null);
+  const [copiedRef, setCopiedRef] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Profile Update Modal State
@@ -76,25 +95,38 @@ export default function StudentDashboardPage() {
       setUser(res.data.user);
       setLoading(false);
       loadJourney();
+      api.getMyReferralStats().then((r) => {
+        if (r.success && r.data) setReferralStats(r.data);
+      });
     }
     loadUser();
   }, [router, loadJourney]);
 
   // Handle postMessage events sent from the sandboxed game iframe
   useEffect(() => {
+    let advancing = false;
     async function handleMessage(event: MessageEvent) {
+      // Security: Only accept messages from our backend origin or same origin
+      const allowedOrigins = [BACKEND_BASE_URL, window.location.origin];
+      if (!allowedOrigins.includes(event.origin)) {
+        return;
+      }
+
       if (
+        !advancing &&
         event.data &&
         event.data.type === "EDUCATION_GAME_CHECKPOINT_COMPLETED" &&
         event.data.completedCheckpoint
       ) {
+        advancing = true;
         const { completedCheckpoint, nextCheckpoint, stateData } = event.data;
 
         try {
           const res = await api.advanceCheckpoint(completedCheckpoint, nextCheckpoint, stateData);
           if (res.success && res.data?.progress) {
             const updatedProg = res.data.progress;
-            setToastMessage(`🎉 Stage ${completedCheckpoint} Completed! Resumed progress saved.`);
+            const subReq = !!res.data.subscriptionRequired;
+
             // Update local state
             setJourneyData((prev) => {
               if (!prev || !prev.progress) return prev;
@@ -107,12 +139,32 @@ export default function StudentDashboardPage() {
                   isCompleted: updatedProg.isCompleted,
                   journeyState: updatedProg.journeyState,
                 },
+                monetization: prev.monetization
+                  ? {
+                      ...prev.monetization,
+                      isDemoCompleted: !!res.data?.demoCompleted,
+                      subscriptionRequired: subReq,
+                    }
+                  : prev.monetization,
               };
             });
-            setTimeout(() => setToastMessage(null), 4000);
+
+            if (subReq) {
+              setToastMessage("🌟 Demo Activity Completed! Unlocking Subscription Plans...");
+              setTimeout(() => {
+                setToastMessage(null);
+                setIsPlayingGame(false);
+                setShowPaywall(true);
+              }, 1400);
+            } else {
+              setToastMessage(`🎉 Stage ${completedCheckpoint} Completed! Resumed progress saved.`);
+              setTimeout(() => setToastMessage(null), 4000);
+            }
           }
         } catch (err) {
           console.error("Failed to advance checkpoint:", err);
+        } finally {
+          advancing = false;
         }
       }
     }
@@ -120,6 +172,70 @@ export default function StudentDashboardPage() {
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
   }, []);
+
+  // =========================================================================
+  // BROWSER RESTRICTION ENGINE (Point 3: Lock browser back & navigation controls)
+  // =========================================================================
+  useEffect(() => {
+    if (!isPlayingGame) return;
+
+    // 1. Push a dummy state so browser history has a forward position to trap
+    window.history.pushState({ inGame: true }, "", window.location.href);
+
+    // 2. Intercept browser native Back button (PopState event)
+    const handlePopState = () => {
+      // Re-push history state forward immediately to neutralize the Back action
+      window.history.pushState({ inGame: true }, "", window.location.href);
+      setToastMessage("⚠️ Browser Back is disabled during the game! Use 'Back to Dashboard' above to exit.");
+      setTimeout(() => setToastMessage(null), 4000);
+    };
+
+    // 3. Intercept accidental page refresh or tab close
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "Your game is currently in progress. Please use 'Back to Dashboard' to exit safely.";
+      return e.returnValue;
+    };
+
+    // 4. Intercept keyboard back navigation shortcuts
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInput =
+        target &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+
+      // Block Backspace outside text input fields
+      if (e.key === "Backspace" && !isInput) {
+        e.preventDefault();
+        return;
+      }
+
+      // Block Alt + ArrowLeft (Windows/Linux back) or Cmd + ArrowLeft / Cmd + [ (Mac back)
+      if (
+        (e.altKey && e.key === "ArrowLeft") ||
+        (e.metaKey && (e.key === "ArrowLeft" || e.key === "["))
+      ) {
+        e.preventDefault();
+        setToastMessage("⚠️ Browser Back shortcut is disabled during the game! Use 'Back to Dashboard'.");
+        setTimeout(() => setToastMessage(null), 3500);
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("keydown", handleKeyDown, true);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("keydown", handleKeyDown, true);
+    };
+  }, [isPlayingGame]);
+
+  const handleExitGame = useCallback(() => {
+    setIsPlayingGame(false);
+    loadJourney();
+  }, [loadJourney]);
 
   async function handleLogout() {
     await api.logout();
@@ -193,12 +309,48 @@ export default function StudentDashboardPage() {
   const currentCp = journeyData?.progress?.currentCheckpoint || 1;
   const maxCp = journeyData?.progress?.maxCompletedCheckpoint || 0;
   const totalCp = journeyData?.activity?.totalCheckpoints || 3;
+  const demoCp = journeyData?.activity?.demoCheckpoints || 1;
+  const hasActiveSubscription = journeyData?.monetization?.hasActiveSubscription ?? false;
+  const isDemoCompleted = journeyData?.monetization?.isDemoCompleted ?? (maxCp >= demoCp);
+  const subscriptionRequired =
+    journeyData?.monetization?.subscriptionRequired ?? (!hasActiveSubscription && isDemoCompleted);
+
   const progressPercent = Math.min(100, Math.round((maxCp / totalCp) * 100));
   const displayClass = user?.classGrade
     ? user.classGrade.toLowerCase().startsWith("class")
       ? user.classGrade
       : `Class ${user.classGrade}`
     : "Class 1";
+
+  async function handleStartGame() {
+    const trackRes = await api.getTrackingStatus();
+    if (trackRes.success && trackRes.data?.activity) {
+      if (
+        !trackRes.data.activity.canProceed ||
+        trackRes.data.activity.lockReason === "SUBSCRIPTION_REQUIRED"
+      ) {
+        setShowPaywall(true);
+        return;
+      }
+    } else if (subscriptionRequired) {
+      setShowPaywall(true);
+      return;
+    }
+
+    api.trackEvent(
+      hasActiveSubscription ? "PREMIUM_STAGE_STARTED" : "DEMO_STARTED",
+      journeyData?.class?.id || null,
+      { checkpoint: currentCp }
+    );
+    setIsPlayingGame(true);
+  }
+
+  function handleCopyReferralCode() {
+    if (!user?.referralCode) return;
+    navigator.clipboard.writeText(user.referralCode);
+    setCopiedRef(true);
+    setTimeout(() => setCopiedRef(false), 2000);
+  }
 
   return (
     <div className="min-h-screen bg-[url('/dashboard-campus-bg.jpg')] bg-cover bg-center bg-fixed text-slate-900 pb-20 relative">
@@ -222,7 +374,15 @@ export default function StudentDashboardPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <Link
+              href="/helpdesk"
+              className="px-3 py-2 rounded-2xl bg-white/80 hover:bg-white text-indigo-700 hover:text-indigo-800 text-xs font-bold border border-white/80 shadow-xs flex items-center gap-1.5 transition-all"
+              title="Contact Admin Helpdesk"
+            >
+              <LifeBuoy className="w-4 h-4 text-indigo-600" />
+              <span className="hidden sm:inline">Helpdesk</span>
+            </Link>
             <div className="text-right hidden sm:block">
               <p className="text-xs font-bold text-slate-900">{user?.fullName}</p>
               <p className="text-[11px] text-indigo-600 font-semibold">{user?.classGrade || "1"}</p>
@@ -313,15 +473,66 @@ export default function StudentDashboardPage() {
                         <span>{[user.city, user.state].filter(Boolean).join(", ")}</span>
                       </span>
                     )}
+
+                    {hasActiveSubscription ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-50 border border-emerald-200 rounded-lg font-bold text-emerald-700 text-[11px] shadow-xs">
+                        <Crown className="w-3 h-3 text-emerald-600" />
+                        <span>Premium Active</span>
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => setShowPaywall(true)}
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg font-bold text-amber-800 text-[11px] shadow-xs cursor-pointer transition-colors"
+                      >
+                        <Sparkles className="w-3 h-3 text-amber-600" />
+                        <span>{isDemoCompleted ? "Upgrade to Unlock" : "Free Demo"}</span>
+                      </button>
+                    )}
+
+                    {user?.referralCode && (
+                      <button
+                        onClick={() => setShowReferAndEarn(true)}
+                        title="Open Refer & Earn to invite friends and track referrals!"
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg font-bold text-purple-800 text-[11px] shadow-xs cursor-pointer transition-colors"
+                      >
+                        <Gift className="w-3 h-3 text-purple-600" />
+                        <span>
+                          Referred: {referralStats?.totalInvited ?? 0}/
+                          {referralStats?.settings.maxReferralsPerStudent ?? 5}
+                        </span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Right Side: Update Profile Button */}
-              <div className="shrink-0">
+              {/* Right Side: Refer & Earn Widget + Update Profile Button */}
+              <div className="shrink-0 flex flex-wrap items-center gap-2.5">
+                {referralStats?.settings?.isEnabled !== false && (
+                  <button
+                    onClick={() => setShowReferAndEarn(true)}
+                    className="px-3.5 py-2 bg-white hover:bg-emerald-50/60 border border-slate-200 hover:border-emerald-300 rounded-2xl transition-all shadow-xs flex items-center gap-2.5 cursor-pointer group"
+                    title="Invite friends & earn rewards!"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <IndianRupee className="w-4 h-4 font-bold" />
+                    </div>
+                    <div className="text-left leading-tight">
+                      <span className="block text-[11px] font-semibold text-slate-600">
+                        Refer and Earn
+                      </span>
+                      <span className="block text-sm font-black text-slate-900">
+                        {referralStats?.settings?.referrerRewardType === "PERCENT"
+                          ? `${referralStats.settings.referrerRewardValue}%`
+                          : `₹${referralStats?.settings?.maxEarnableAmount ?? 4000}`}
+                      </span>
+                    </div>
+                  </button>
+                )}
+
                 <button
                   onClick={handleOpenProfileModal}
-                  className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-white hover:bg-slate-50 text-indigo-700 font-bold border border-indigo-200 hover:border-indigo-300 rounded-xl text-xs transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer hover:shadow-sm"
+                  className="px-3.5 py-2 sm:px-4 sm:py-2.5 bg-white hover:bg-slate-50 text-indigo-700 font-bold border border-indigo-200 hover:border-indigo-300 rounded-xl text-xs transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer hover:shadow-sm"
                 >
                   <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
                   <span>Update Profile</span>
@@ -362,15 +573,15 @@ export default function StudentDashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
               {/* LEFT SIDE: Active Activity Live Glance Preview */}
               <div
-                onClick={() => setIsPlayingGame(true)}
+                onClick={handleStartGame}
                 className="lg:col-span-7 relative overflow-hidden rounded-3xl min-h-[380px] sm:min-h-[440px] flex flex-col justify-between bg-slate-900 select-none group cursor-pointer"
-                title="Click to play activity"
+                title={subscriptionRequired ? "Click to upgrade & unlock Stage 2" : "Click to play activity"}
               >
                 {/* Live Activity HTML Page (Scaled, Blurry, Non-interactive) */}
                 <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none select-none">
                   {journeyData.activity?.playUrl && (
                     <iframe
-                      src={`${BACKEND_BASE_URL}${journeyData.activity.playUrl}?checkpoint=${currentCp}&maxCompleted=${maxCp}`}
+                      src={`${BACKEND_BASE_URL}${journeyData.activity.playUrl}?checkpoint=${currentCp}&maxCompleted=${maxCp}&demoLimit=${demoCp}&isSubscribed=${hasActiveSubscription ? 1 : 0}`}
                       className="w-[140%] h-[140%] border-0 bg-white origin-top-left scale-[0.714] filter blur-[2px] opacity-85 select-none pointer-events-none"
                       tabIndex={-1}
                       aria-hidden="true"
@@ -379,7 +590,62 @@ export default function StudentDashboardPage() {
                   )}
                 </div>
                 {/* Protective Glass & Gradient Overlay */}
-                <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-[0.5px] pointer-events-none z-10 transition-colors group-hover:bg-slate-900/10" />
+                <div className="absolute inset-0 bg-slate-900/25 backdrop-blur-[0.5px] pointer-events-none z-10 transition-colors group-hover:bg-slate-900/15" />
+
+                {/* Top Activity Badge */}
+                <div className="relative z-20 p-5 flex items-center justify-between">
+                  <div className="px-3.5 py-1.5 rounded-full bg-slate-900/75 backdrop-blur-md border border-white/20 text-white text-xs font-bold flex items-center gap-2 shadow-sm">
+                    <Gamepad2 className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>{journeyData.activity?.title || "Active Activity"}</span>
+                  </div>
+                  <span className={`text-[11px] font-bold px-3 py-1 rounded-full shadow-sm ${
+                    hasActiveSubscription
+                      ? "bg-emerald-400 text-emerald-950"
+                      : isDemoCompleted
+                      ? "bg-purple-400 text-purple-950"
+                      : "bg-amber-400 text-amber-950"
+                  }`}>
+                    {hasActiveSubscription
+                      ? `Stage ${currentCp} • Premium`
+                      : isDemoCompleted
+                      ? "Demo Completed 🎉"
+                      : `Stage ${currentCp} • Free Demo`}
+                  </span>
+                </div>
+
+                {/* Centered Childish Rounded PLAY or UNLOCK Button */}
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none">
+                  {subscriptionRequired ? (
+                    <>
+                      <div className="px-7 py-3.5 sm:px-9 sm:py-4 rounded-full bg-gradient-to-b from-purple-400 via-indigo-500 to-purple-700 text-white font-black text-sm sm:text-base tracking-wider uppercase shadow-[0_10px_30px_rgba(99,102,241,0.6)] border-3 border-white/80 flex items-center gap-2.5 transform transition-transform duration-200 group-hover:scale-110">
+                        <Crown className="w-5 h-5 fill-amber-300 text-amber-300" />
+                        <span>UNLOCK PREMIUM</span>
+                      </div>
+                      <span className="mt-2 text-xs font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                        Subscribe to continue Stage {currentCp}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="px-8 py-3.5 sm:px-10 sm:py-4 rounded-full bg-gradient-to-b from-amber-300 via-orange-400 to-amber-500 text-white font-black text-base sm:text-lg tracking-wider uppercase shadow-[0_10px_30px_rgba(245,158,11,0.6)] border-3 border-white/80 flex items-center gap-2.5 transform transition-transform duration-200 group-hover:scale-110 active:scale-95">
+                        <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-white text-white drop-shadow-sm" />
+                        <span className="drop-shadow-md">PLAY</span>
+                      </div>
+                      <span className="mt-2 text-xs font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] tracking-wide">
+                        Start Your Mission!
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                {/* Bottom Glance Hint */}
+                <div className="relative z-20 p-4 text-center">
+                  <span className="text-[11px] text-white/90 font-medium px-3 py-1 rounded-full bg-black/40 backdrop-blur-xs">
+                    {subscriptionRequired
+                      ? "Demo cleared • Click to unlock all remaining stages"
+                      : "Live stage glance preview • Click to enter full page"}
+                  </span>
+                </div>
               </div>
 
               {/* RIGHT SIDE: Curriculum Details & Progressive Checkpoints */}
@@ -397,9 +663,11 @@ export default function StudentDashboardPage() {
                   <div className="mt-5 space-y-3">
                     {Array.from({ length: totalCp }).map((_, idx) => {
                       const stageNum = idx + 1;
+                      const isDemoStage = stageNum <= demoCp;
+                      const isPaywalled = !hasActiveSubscription && !isDemoStage;
                       const isCompleted = stageNum <= maxCp;
-                      const isActive = stageNum === currentCp;
-                      const isLocked = stageNum > currentCp;
+                      const isActive = stageNum === currentCp && !isPaywalled;
+                      const isLocked = stageNum > currentCp || isPaywalled;
 
                       return (
                         <div
@@ -409,11 +677,13 @@ export default function StudentDashboardPage() {
                               ? "bg-emerald-50/70 border-emerald-200"
                               : isActive
                               ? "bg-indigo-50/80 border-indigo-300 ring-2 ring-indigo-200/70 shadow-xs"
-                              : "bg-slate-50/70 border-slate-200 opacity-60"
+                              : isPaywalled && isDemoCompleted && stageNum === demoCp + 1
+                              ? "bg-purple-50/80 border-purple-300 ring-2 ring-purple-200/60"
+                              : "bg-slate-50/70 border-slate-200 opacity-70"
                           }`}
                         >
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
                               <span className="text-xs font-black text-slate-800">Stage {stageNum}</span>
                               <span className="text-slate-300">•</span>
                               <span className="text-xs font-bold text-slate-900 truncate">
@@ -423,10 +693,21 @@ export default function StudentDashboardPage() {
                                   ? "Math & Calculation"
                                   : "Shapes & Logic Quest"}
                               </span>
+                              <span
+                                className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md ${
+                                  isDemoStage
+                                    ? "bg-sky-100 text-sky-700"
+                                    : "bg-purple-100 text-purple-700"
+                                }`}
+                              >
+                                {isDemoStage ? "Demo" : "Premium"}
+                              </span>
                             </div>
                             <p className="text-[11px] text-slate-500 leading-snug">
                               {isCompleted
                                 ? "Completed! Past activities cannot be replayed."
+                                : isPaywalled
+                                ? "Subscription required to unlock this premium stage."
                                 : isActive
                                 ? "Ready to play! Complete this stage to unlock the next."
                                 : "Will unlock automatically after previous stage."}
@@ -439,6 +720,14 @@ export default function StudentDashboardPage() {
                                 <CheckCircle2 className="w-3 h-3" />
                                 <span>Completed</span>
                               </span>
+                            ) : isPaywalled ? (
+                              <button
+                                onClick={() => setShowPaywall(true)}
+                                className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 bg-purple-100 hover:bg-purple-200 px-2.5 py-1 rounded-full cursor-pointer transition-colors"
+                              >
+                                <Lock className="w-3 h-3" />
+                                <span>Subscribe</span>
+                              </button>
                             ) : isActive ? (
                               <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-100 px-2.5 py-1 rounded-full animate-pulse">
                                 <span>Active Checkpoint</span>
@@ -456,14 +745,23 @@ export default function StudentDashboardPage() {
                   </div>
                 </div>
 
-                 <button
-                    onClick={() => setIsPlayingGame(true)}
+                {subscriptionRequired ? (
+                  <button
+                    onClick={() => setShowPaywall(true)}
+                    className="w-full mt-5 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-extrabold rounded-xl shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-102"
+                  >
+                    <Crown className="w-4 h-4 text-amber-300" />
+                    <span>Unlock Full Journey (Subscribe)</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleStartGame}
                     className="w-full sm:w-auto mt-5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all hover:scale-102"
                   >
                     <Play className="w-3.5 h-3.5 fill-current" />
                     <span>Play game</span>
                   </button>
-                
+                )}
               </div>
             </div>
           ) : (
@@ -579,14 +877,22 @@ export default function StudentDashboardPage() {
 
               {/* Password message note */}
               <div className="pt-2 border-t border-slate-100">
-                <div className="p-3.5 bg-amber-50/90 border border-amber-200/90 rounded-2xl flex items-start gap-3 text-xs text-amber-950">
-                  <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold block text-amber-900">Password changes:</span>
-                    <span className="text-[11px] text-amber-800 leading-snug">
-                      To change or reset your password, please contact with Admin.
-                    </span>
+                <div className="p-3.5 bg-amber-50/90 border border-amber-200/90 rounded-2xl flex items-start justify-between gap-3 text-xs text-amber-950">
+                  <div className="flex items-start gap-3">
+                    <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold block text-amber-900">Password changes:</span>
+                      <span className="text-[11px] text-amber-800 leading-snug">
+                        To change or reset your password, please contact with Admin.
+                      </span>
+                    </div>
                   </div>
+                  <Link
+                    href="/helpdesk"
+                    className="shrink-0 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold transition-colors"
+                  >
+                    Contact Admin
+                  </Link>
                 </div>
               </div>
 
@@ -631,10 +937,7 @@ export default function StudentDashboardPage() {
             {/* Left: Back to Dashboard Button & Activity Details */}
             <div className="flex items-center gap-3 sm:gap-4">
               <button
-                onClick={() => {
-                  setIsPlayingGame(false);
-                  loadJourney();
-                }}
+                onClick={handleExitGame}
                 className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-bold shadow-md transition-all hover:scale-102 active:scale-98 cursor-pointer group"
                 title="Back to Student Dashboard"
               >
@@ -675,10 +978,7 @@ export default function StudentDashboardPage() {
                 <span className="hidden md:inline">Sync Progress</span>
               </button>
               <button
-                onClick={() => {
-                  setIsPlayingGame(false);
-                  loadJourney();
-                }}
+                onClick={handleExitGame}
                 className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1"
                 title="Exit Game"
               >
@@ -691,13 +991,23 @@ export default function StudentDashboardPage() {
           {/* Full-Page Activity Container */}
           <main className="flex-1 w-full h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)] bg-white relative overflow-hidden">
             {toastMessage && (
-              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 px-5 py-2.5 rounded-2xl bg-indigo-600 text-white shadow-xl text-xs sm:text-sm font-bold flex items-center gap-2 animate-in fade-in slide-in-from-top-4 duration-300">
-                <Zap className="w-4 h-4 text-amber-300" />
+              <div
+                className={`absolute top-4 left-1/2 -translate-x-1/2 z-30 px-5 py-2.5 rounded-2xl text-white shadow-2xl text-xs sm:text-sm font-bold flex items-center gap-2 animate-in fade-in slide-in-from-top-4 duration-300 max-w-md text-center ${
+                  toastMessage.startsWith("⚠️")
+                    ? "bg-amber-600/95 border border-amber-300 backdrop-blur-md"
+                    : "bg-indigo-600 border border-indigo-400"
+                }`}
+              >
+                {toastMessage.startsWith("⚠️") ? (
+                  <AlertCircle className="w-4 h-4 text-amber-200 shrink-0" />
+                ) : (
+                  <Zap className="w-4 h-4 text-amber-300 shrink-0" />
+                )}
                 <span>{toastMessage}</span>
               </div>
             )}
             <iframe
-              src={`${BACKEND_BASE_URL}${journeyData.activity.playUrl}?checkpoint=${currentCp}&maxCompleted=${maxCp}`}
+              src={`${BACKEND_BASE_URL}${journeyData.activity.playUrl}?checkpoint=${currentCp}&maxCompleted=${maxCp}&demoLimit=${demoCp}&isSubscribed=${hasActiveSubscription ? 1 : 0}`}
               className="w-full h-full border-0 bg-white"
               allow="autoplay; fullscreen; microphone; camera; display-capture"
               sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals allow-downloads"
@@ -705,6 +1015,45 @@ export default function StudentDashboardPage() {
             />
           </main>
         </div>
+      )}
+
+      {/* FULL-PAGE SUBSCRIPTION PAYWALL */}
+      {showPaywall && user && (
+        <SubscriptionPaywall
+          studentName={user.fullName}
+          classGrade={displayClass}
+          isDemoCompleted={isDemoCompleted}
+          myReferralCode={user.referralCode}
+          referredByCode={user.referredByCode}
+          rewardWalletBalance={referralStats?.rewardWalletBalance ?? user.rewardWalletBalance ?? 0}
+          onClose={() => setShowPaywall(false)}
+          onSubscriptionActivated={async () => {
+            setShowPaywall(false);
+            await loadJourney();
+            const meRes = await api.getMe();
+            if (meRes.success && meRes.data?.user) setUser(meRes.data.user);
+            const refRes = await api.getMyReferralStats();
+            if (refRes.success && refRes.data) setReferralStats(refRes.data);
+            setToastMessage("🎉 Premium Subscription Activated! All stages are now unlocked.");
+            setTimeout(() => setToastMessage(null), 5000);
+          }}
+        />
+      )}
+
+      {/* FULL-PAGE REFER & EARN SCREEN */}
+      {showReferAndEarn && (
+        <ReferAndEarnView
+          onClose={() => {
+            setShowReferAndEarn(false);
+            api.getMyReferralStats().then((r) => {
+              if (r.success && r.data) setReferralStats(r.data);
+            });
+          }}
+          onGoToPaywall={() => {
+            setShowReferAndEarn(false);
+            setShowPaywall(true);
+          }}
+        />
       )}
     </div>
   );

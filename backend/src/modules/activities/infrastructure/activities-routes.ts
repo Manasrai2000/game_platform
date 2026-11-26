@@ -49,6 +49,10 @@ router.post(
   (req, res, next) => activitiesController.uploadPackage(req, res, next)
 );
 
+router.patch("/admin/:id", requireAuth, requireAdmin, (req, res, next) =>
+  activitiesController.updateActivityConfig(req, res, next)
+);
+
 router.delete("/:id", requireAuth, requireAdmin, (req, res, next) =>
   activitiesController.deleteActivity(req, res, next)
 );

@@ -17,6 +17,9 @@ export interface AuthenticatedUser {
   city: string | null;
   state: string | null;
   isActive: boolean;
+  referralCode: string | null;
+  referredByCode: string | null;
+  rewardWalletBalance: number;
   sessionId: string;
   deviceId: number | null;
 }
@@ -61,6 +64,9 @@ export async function requireAuth(
         city: users.city,
         state: users.state,
         isActive: users.is_active,
+        referralCode: users.referral_code,
+        referredByCode: users.referred_by_code,
+        rewardWalletBalance: users.reward_wallet_balance,
         deviceId: sessions.device_id,
         revokedAt: sessions.revoked_at,
         expiresAt: sessions.expires_at,
@@ -97,6 +103,9 @@ export async function requireAuth(
       city: sessionData.city,
       state: sessionData.state,
       isActive: sessionData.isActive,
+      referralCode: sessionData.referralCode,
+      referredByCode: sessionData.referredByCode,
+      rewardWalletBalance: sessionData.rewardWalletBalance,
       sessionId: sessionData.sessionId,
       deviceId: sessionData.deviceId,
     };
@@ -105,6 +114,29 @@ export async function requireAuth(
   } catch (err) {
     next(err);
   }
+}
+
+/**
+ * Optional Auth middleware: attaches req.user if a valid session cookie exists,
+ * otherwise proceeds silently as an unauthenticated guest.
+ */
+export async function optionalAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  const rawSid = req.cookies[env.SESSION_COOKIE_NAME];
+  if (!rawSid) {
+    next();
+    return;
+  }
+  await requireAuth(req, res, (err?: unknown) => {
+    if (err) {
+      // Ignore auth failure for optional endpoints; treat as guest
+      req.user = undefined;
+    }
+    next();
+  });
 }
 
 /**

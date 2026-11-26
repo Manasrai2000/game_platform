@@ -161,7 +161,7 @@ export default function LoginPage() {
         </form>
 
         {/* Footer */}
-        <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+        <div className="mt-8 pt-6 border-t border-slate-100 text-center space-y-2.5">
           <p className="text-slate-500 text-xs">
             New Student?{" "}
             <Link
@@ -169,6 +169,15 @@ export default function LoginPage() {
               className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors"
             >
               Register your account
+            </Link>
+          </p>
+          <p className="text-slate-500 text-xs">
+            Need device unlock or login help?{" "}
+            <Link
+              href="/helpdesk"
+              className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors"
+            >
+              Contact Admin Helpdesk
             </Link>
           </p>
         </div>

@@ -35,8 +35,13 @@ export class ActivitiesRepository {
     storagePath: string;
     entryFile: string;
     totalCheckpoints: number;
+    demoCheckpointsCount?: number;
   }): Promise<ClassActivityModel> {
     const existing = await this.findByClassId(data.classId);
+    const demoCount = Math.min(
+      Math.max(0, data.demoCheckpointsCount ?? 1),
+      data.totalCheckpoints
+    );
 
     if (existing) {
       await db
@@ -48,6 +53,7 @@ export class ActivitiesRepository {
           storage_path: data.storagePath,
           entry_file: data.entryFile,
           total_checkpoints: data.totalCheckpoints,
+          demo_checkpoints_count: demoCount,
           is_active: true,
         })
         .where(eq(class_activities.id, existing.id));
@@ -64,11 +70,42 @@ export class ActivitiesRepository {
       storage_path: data.storagePath,
       entry_file: data.entryFile,
       total_checkpoints: data.totalCheckpoints,
+      demo_checkpoints_count: demoCount,
       is_active: true,
     });
 
     const created = await this.findById(Number(result.insertId));
     return created!;
+  }
+
+  async updateActivityConfig(
+    id: number,
+    data: {
+      title?: string;
+      totalCheckpoints?: number;
+      demoCheckpointsCount?: number;
+      isActive?: boolean;
+    }
+  ): Promise<ClassActivityModel> {
+    const existing = await this.findById(id);
+    if (!existing) throw new NotFoundError("Activity package not found");
+
+    const nextTotal = data.totalCheckpoints ?? existing.total_checkpoints;
+    const rawDemo = data.demoCheckpointsCount ?? existing.demo_checkpoints_count;
+    const nextDemo = Math.min(Math.max(0, rawDemo), nextTotal);
+
+    await db
+      .update(class_activities)
+      .set({
+        ...(data.title !== undefined ? { title: data.title } : {}),
+        total_checkpoints: nextTotal,
+        demo_checkpoints_count: nextDemo,
+        ...(data.isActive !== undefined ? { is_active: data.isActive } : {}),
+      })
+      .where(eq(class_activities.id, id));
+
+    const updated = await this.findById(id);
+    return updated!;
   }
 
   async listAllWithClasses(): Promise<
@@ -81,6 +118,7 @@ export class ActivitiesRepository {
       storagePath: string;
       entryFile: string;
       totalCheckpoints: number;
+      demoCheckpointsCount: number;
       isActive: boolean;
       createdAt: Date;
       updatedAt: Date;
@@ -96,6 +134,7 @@ export class ActivitiesRepository {
         storagePath: class_activities.storage_path,
         entryFile: class_activities.entry_file,
         totalCheckpoints: class_activities.total_checkpoints,
+        demoCheckpointsCount: class_activities.demo_checkpoints_count,
         isActive: class_activities.is_active,
         createdAt: class_activities.created_at,
         updatedAt: class_activities.updated_at,

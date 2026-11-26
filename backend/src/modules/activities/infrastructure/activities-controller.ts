@@ -3,13 +3,22 @@ import { z } from "zod";
 import { activitiesRepository } from "./activities-repository";
 import { activityStorageService } from "./activity-storage-service";
 import { classesRepository } from "../../classes/infrastructure/classes-repository";
-import { BadRequestError, NotFoundError } from "../../../core/errors/app-error";
+import { BadRequestError, ForbiddenError, NotFoundError } from "../../../core/errors/app-error";
+import { trackingService } from "../../tracking/tracking-service";
 
 const uploadInputSchema = z.object({
   classId: z.coerce.number().positive("Valid class is required"),
   title: z.string().min(1, "Title is required").max(255),
   description: z.string().optional(),
   totalCheckpoints: z.coerce.number().int().min(1).default(3),
+  demoCheckpointsCount: z.coerce.number().int().min(0).default(1),
+});
+
+const updateConfigSchema = z.object({
+  title: z.string().min(1).max(255).optional(),
+  totalCheckpoints: z.coerce.number().int().min(1).optional(),
+  demoCheckpointsCount: z.coerce.number().int().min(0).optional(),
+  isActive: z.boolean().optional(),
 });
 
 const checkpointInputSchema = z.object({
@@ -50,6 +59,7 @@ export class ActivitiesController {
         storagePath: extracted.storagePath,
         entryFile: extracted.entryFile,
         totalCheckpoints: validated.totalCheckpoints,
+        demoCheckpointsCount: validated.demoCheckpointsCount,
       });
 
       res.status(201).json({
@@ -71,6 +81,25 @@ export class ActivitiesController {
       res.status(200).json({
         success: true,
         data: { activities },
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Admin: Update Demo Checkpoints, Total Checkpoints, Title, or Active status
+   */
+  async updateActivityConfig(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = Number(req.params.id);
+      const validated = updateConfigSchema.parse(req.body);
+      const updated = await activitiesRepository.updateActivityConfig(id, validated);
+
+      res.status(200).json({
+        success: true,
+        message: "Activity demo/premium configuration updated successfully!",
+        data: { activity: updated },
       });
     } catch (err) {
       next(err);
@@ -150,6 +179,13 @@ export class ActivitiesController {
         activity.id
       );
 
+      // Get tracking / subscription validation status
+      const tracking = await trackingService.getUserActivityStatus(user.id, user.classGrade);
+      const hasActiveSubscription = tracking?.access.hasActiveSubscription ?? false;
+      const demoCheckpoints = activity.demo_checkpoints_count || 1;
+      const isDemoCompleted = progress.max_completed_checkpoint >= demoCheckpoints;
+      const subscriptionRequired = !hasActiveSubscription && isDemoCompleted;
+
       res.status(200).json({
         success: true,
         data: {
@@ -166,6 +202,7 @@ export class ActivitiesController {
             storagePath: activity.storage_path,
             entryFile: activity.entry_file,
             totalCheckpoints: activity.total_checkpoints,
+            demoCheckpoints,
             // Full URL to the index.html inside the static activities-storage path
             playUrl: `/activities-storage/${activity.storage_path}/${activity.entry_file}`,
           },
@@ -175,6 +212,12 @@ export class ActivitiesController {
             isCompleted: progress.is_journey_completed,
             journeyState: progress.journey_state ? JSON.parse(progress.journey_state) : null,
             lastPlayedAt: progress.last_played_at,
+          },
+          monetization: {
+            hasActiveSubscription,
+            subscription: tracking?.access.subscription || null,
+            isDemoCompleted,
+            subscriptionRequired,
           },
         },
       });
@@ -207,6 +250,15 @@ export class ActivitiesController {
         throw new NotFoundError("Class activity journey not found");
       }
 
+      const demoLimit = activity.demo_checkpoints_count || 1;
+      const tracking = await trackingService.getUserActivityStatus(user.id, user.classGrade);
+      const hasActiveSubscription = tracking?.access.hasActiveSubscription ?? false;
+
+      // Enforce Subscription Paywall when trying to complete Premium Stages without subscription
+      if (validated.completedCheckpoint > demoLimit && !hasActiveSubscription) {
+        throw new ForbiddenError("Subscription required to play premium curriculum stages!");
+      }
+
       const updated = await activitiesRepository.advanceStudentCheckpoint(
         user.id,
         matchedClass.id,
@@ -216,9 +268,20 @@ export class ActivitiesController {
         validated.stateData ? JSON.stringify(validated.stateData) : undefined
       );
 
+      const isDemoJustFinished =
+        validated.completedCheckpoint >= demoLimit && !hasActiveSubscription;
+
+      if (isDemoJustFinished) {
+        await trackingService.trackEvent(user.id, matchedClass.id, "DEMO_STAGE_PASSED", {
+          completedCheckpoint: validated.completedCheckpoint,
+        });
+      }
+
       res.status(200).json({
         success: true,
-        message: `Level ${validated.completedCheckpoint} completed! Advancing to Level ${updated.current_checkpoint}`,
+        message: isDemoJustFinished
+          ? `Demo Stage ${validated.completedCheckpoint} completed! Subscribe to unlock remaining stages.`
+          : `Level ${validated.completedCheckpoint} completed! Advancing to Level ${updated.current_checkpoint}`,
         data: {
           progress: {
             currentCheckpoint: updated.current_checkpoint,
@@ -226,6 +289,8 @@ export class ActivitiesController {
             isCompleted: updated.is_journey_completed,
             journeyState: updated.journey_state ? JSON.parse(updated.journey_state) : null,
           },
+          demoCompleted: updated.max_completed_checkpoint >= demoLimit,
+          subscriptionRequired: !hasActiveSubscription && updated.max_completed_checkpoint >= demoLimit,
         },
       });
     } catch (err) {

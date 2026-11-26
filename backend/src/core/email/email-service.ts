@@ -89,6 +89,73 @@ export class EmailService {
       return false;
     }
   }
+
+  /**
+   * Send Helpdesk Ticket confirmation or resolution update email.
+   */
+  async sendHelpdeskEmail(params: {
+    to: string;
+    recipientName: string;
+    ticketNumber: string;
+    subject: string;
+    status: string;
+    adminReply?: string | null;
+    isNewTicket?: boolean;
+  }): Promise<boolean> {
+    if (!this.transporter) return false;
+
+    const statusLabel = params.status.replace(/_/g, " ");
+    const mailOptions = {
+      from: env.MAIL_FROM,
+      to: params.to,
+      subject: params.isNewTicket
+        ? `[${params.ticketNumber}] Support Ticket Received - ${params.subject}`
+        : `[${params.ticketNumber}] Ticket Update (${statusLabel}) - ${params.subject}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"></head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#f8fafc; padding:24px;">
+          <div style="max-width:560px; margin:0 auto; background:#fff; border-radius:16px; border:1px solid #e2e8f0; overflow:hidden;">
+            <div style="background:#4f46e5; padding:20px 24px; color:#fff;">
+              <h2 style="margin:0; font-size:18px;">🎮 Education Game Helpdesk</h2>
+              <p style="margin:4px 0 0; font-size:12px; opacity:0.9;">Ticket Number: <strong>${params.ticketNumber}</strong></p>
+            </div>
+            <div style="padding:24px; color:#1e293b; font-size:14px; line-height:1.6;">
+              <p>Hello <strong>${params.recipientName}</strong>,</p>
+              <p>${
+                params.isNewTicket
+                  ? "We have received your support request. Our administrator will review and resolve it shortly."
+                  : `Your support ticket status has been updated to: <strong>${statusLabel}</strong>.`
+              }</p>
+              <div style="background:#f1f5f9; border-radius:12px; padding:14px 16px; margin:16px 0;">
+                <div style="font-size:12px; color:#64748b;">Subject</div>
+                <div style="font-weight:700; color:#0f172a;">${params.subject}</div>
+              </div>
+              ${
+                params.adminReply
+                  ? `<div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:12px; padding:14px 16px; margin:16px 0;">
+                      <div style="font-size:12px; color:#047857; font-weight:700;">Admin Response:</div>
+                      <div style="color:#065f46; margin-top:4px;">${params.adminReply}</div>
+                     </div>`
+                  : ""
+              }
+              <p style="font-size:12px; color:#64748b;">You can check your ticket status anytime on our Helpdesk page using Ticket Number <strong>${params.ticketNumber}</strong> and your email address.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      return true;
+    } catch (error) {
+      console.error("❌ Failed to send Helpdesk email to", params.to, error);
+      return false;
+    }
+  }
 }
 
 export const emailService = new EmailService();

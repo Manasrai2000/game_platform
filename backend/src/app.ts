@@ -33,11 +33,12 @@ export function createApp(): express.Application {
   app.use(
     cors({
       origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps, curl, or server-to-server)
         if (!origin || allowedOrigins.includes(origin)) {
           callback(null, true);
+        } else if (env.NODE_ENV !== "production") {
+          callback(null, true); // Permissive in local development
         } else {
-          callback(null, true); // Permissive in dev, or origin match
+          callback(new Error("Origin not allowed by CORS policy"));
         }
       },
       credentials: true,
@@ -45,8 +46,14 @@ export function createApp(): express.Application {
     })
   );
 
-  // Parsers
-  app.use(express.json());
+  // Parsers (preserve rawBody for Razorpay Webhook HMAC signature verification)
+  app.use(
+    express.json({
+      verify: (req: express.Request & { rawBody?: Buffer }, _res, buf) => {
+        req.rawBody = buf;
+      },
+    })
+  );
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser(env.COOKIE_SECRET));
 

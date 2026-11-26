@@ -18,6 +18,7 @@ export const registerSchema = z.object({
   state: z.string().min(1, "State is required").max(100),
   password: z.string().min(8, "Password must be at least 8 characters").max(100),
   otp: z.string().min(6, "Verification code must be 6 digits").max(6, "Verification code must be 6 digits"),
+  referralCode: z.string().max(32).optional(),
   deviceLabel: z.string().max(200).default("Desktop Browser"),
   clientPublicKeySpki: z.string().optional(),
   dbscSessionId: z.string().optional(),

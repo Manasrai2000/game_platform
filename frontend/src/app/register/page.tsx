@@ -21,6 +21,8 @@ import {
   ShieldCheck,
   X,
   RotateCcw,
+  Gift,
+  Sparkles,
 } from "lucide-react";
 
 export default function RegisterPage() {
@@ -50,6 +52,30 @@ export default function RegisterPage() {
   const [otpCountdown, setOtpCountdown] = useState(0);
   const [otpError, setOtpError] = useState<string | null>(null);
   const [otpSuccessMsg, setOtpSuccessMsg] = useState<string | null>(null);
+
+  // Shareable Referral Link (?ref=CODE) state
+  const [referralCode, setReferralCode] = useState("");
+  const [referralInfo, setReferralInfo] = useState<{
+    valid: boolean;
+    referrerName?: string;
+    discountType?: "FLAT" | "PERCENT";
+    discountValue?: number;
+    reason?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const refParam = params.get("ref");
+    if (refParam && refParam.trim()) {
+      const clean = refParam.trim().toUpperCase();
+      setReferralCode(clean);
+      api.getPublicReferralInfo(clean).then((res) => {
+        if (res.success && res.data) {
+          setReferralInfo(res.data);
+        }
+      });
+    }
+  }, []);
 
   useEffect(() => {
     async function loadClasses() {
@@ -179,6 +205,7 @@ export default function RegisterPage() {
         email: formData.email,
         password: formData.password,
         otp: otpCode.trim(),
+        referralCode: referralCode.trim() || undefined,
         deviceLabel,
         clientPublicKeySpki,
       });
@@ -212,6 +239,36 @@ export default function RegisterPage() {
             Create your account and bind this machine as your learning device
           </p>
         </div>
+
+        {/* Referral Invite Banner (if opened via shareable link) */}
+        {referralInfo?.valid && (
+          <div className="mb-6 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-emerald-100 text-emerald-700 shrink-0">
+              <Gift className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs font-extrabold text-emerald-900 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Invited by {referralInfo.referrerName}!</span>
+              </div>
+              <p className="text-[11px] text-emerald-800 mt-0.5">
+                Complete registration to unlock{" "}
+                <strong>
+                  {referralInfo.discountType === "PERCENT"
+                    ? `${referralInfo.discountValue}% OFF`
+                    : `₹${referralInfo.discountValue} OFF`}
+                </strong>{" "}
+                on your subscription! (Code: <span className="font-mono font-bold">{referralCode}</span>)
+              </p>
+            </div>
+          </div>
+        )}
+
+        {referralInfo && !referralInfo.valid && referralInfo.reason && (
+          <div className="mb-6 p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800 text-xs">
+            {referralInfo.reason}
+          </div>
+        )}
 
         {/* Error Alert */}
         {errorMessage && (
@@ -427,7 +484,7 @@ export default function RegisterPage() {
         </form>
 
         {/* Footer */}
-        <div className="mt-6 pt-4 border-t border-slate-100 text-center">
+        <div className="mt-6 pt-4 border-t border-slate-100 text-center space-y-2">
           <p className="text-slate-500 text-xs">
             Already registered?{" "}
             <Link
@@ -435,6 +492,15 @@ export default function RegisterPage() {
               className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors"
             >
               Sign In here
+            </Link>
+          </p>
+          <p className="text-slate-500 text-xs">
+            Having OTP or registration issues?{" "}
+            <Link
+              href="/helpdesk"
+              className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors"
+            >
+              Contact Admin Helpdesk
             </Link>
           </p>
         </div>

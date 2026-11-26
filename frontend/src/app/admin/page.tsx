@@ -8,10 +8,25 @@ import {
   ApiUser,
   ClassItem,
   AdminActivityItem,
+  AdminPlanItem,
+  AdminPromoCodeItem,
+  ReferralSettingsModel,
+  AdminReferralLedgerItem,
+  SupportTicketItem,
+  HelpdeskSummary,
+  AdminPaymentOrderItem,
+  AdminPaymentsSummary,
+  StudentsSummary,
+  PaginationMeta,
   BACKEND_BASE_URL,
   StudentFullDetails,
   StudentFilterParams,
 } from "@/lib/api";
+import { AdminPlansTab } from "@/components/admin/AdminPlansTab";
+import { AdminReferralsTab } from "@/components/admin/AdminReferralsTab";
+import { AdminReferralProgramTab } from "@/components/admin/AdminReferralProgramTab";
+import { AdminHelpdeskTab } from "@/components/admin/AdminHelpdeskTab";
+import { AdminPaymentsTab } from "@/components/admin/AdminPaymentsTab";
 import {
   Gamepad2,
   Search,
@@ -50,16 +65,28 @@ import {
   ShieldAlert,
   RefreshCw,
   Filter,
+  Gift,
+  LifeBuoy,
+  Crown,
+  IndianRupee,
 } from "lucide-react";
 
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [adminUser, setAdminUser] = useState<ApiUser | null>(null);
-  const [activeTab, setActiveTab] = useState<"students" | "classes" | "activities">("students");
+  const [activeTab, setActiveTab] = useState<
+    "students" | "classes" | "activities" | "plans" | "payments" | "referrals" | "referralProgram" | "helpdesk"
+  >("students");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // --- Students state & pagination ---
   const [students, setStudents] = useState<StudentListItem[]>([]);
+  const [studentSummary, setStudentSummary] = useState<StudentsSummary>({
+    totalStudents: 0,
+    premiumCount: 0,
+    expiredCount: 0,
+    freeCount: 0,
+  });
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [studentsLoading, setStudentsLoading] = useState(false);
@@ -71,6 +98,7 @@ export default function AdminDashboardPage() {
   // --- Students filter & refresh state ---
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
+  const [filterPlanTier, setFilterPlanTier] = useState<"all" | "premium" | "free" | "expired">("all");
   const [filterClass, setFilterClass] = useState<string>("all");
   const [filterStartDate, setFilterStartDate] = useState<string>("");
   const [filterEndDate, setFilterEndDate] = useState<string>("");
@@ -138,8 +166,121 @@ export default function AdminDashboardPage() {
   const [uploadClassId, setUploadClassId] = useState<number | "">("");
   const [uploadTitle, setUploadTitle] = useState("");
   const [uploadCheckpoints, setUploadCheckpoints] = useState(3);
+  const [uploadDemoCheckpoints, setUploadDemoCheckpoints] = useState(1);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  // Edit Activity Demo/Premium Config Modal
+  const [editingActivityConfig, setEditingActivityConfig] = useState<AdminActivityItem | null>(null);
+  const [editActTitle, setEditActTitle] = useState("");
+  const [editActTotalCp, setEditActTotalCp] = useState(3);
+  const [editActDemoCp, setEditActDemoCp] = useState(1);
+
+  // --- Plans & Promo Referrals State ---
+  const [plansList, setPlansList] = useState<AdminPlanItem[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(false);
+  const [promoCodesList, setPromoCodesList] = useState<AdminPromoCodeItem[]>([]);
+  const [loadingPromoCodes, setLoadingPromoCodes] = useState(false);
+  const [referralSettings, setReferralSettings] = useState<ReferralSettingsModel | null>(null);
+  const [referralLedger, setReferralLedger] = useState<AdminReferralLedgerItem[]>([]);
+  const [loadingRefProgram, setLoadingRefProgram] = useState(false);
+
+  // --- Helpdesk Queue State ---
+  const [helpdeskTickets, setHelpdeskTickets] = useState<SupportTicketItem[]>([]);
+  const [helpdeskSummary, setHelpdeskSummary] = useState<HelpdeskSummary>({
+    totalAll: 0,
+    totalOpen: 0,
+    lateCriticalCount: 0,
+    agingHighCount: 0,
+    resolvedCount: 0,
+  });
+  const [loadingHelpdesk, setLoadingHelpdesk] = useState(false);
+
+  // --- Payments & Revenue Ledger state ---
+  const [paymentsOrders, setPaymentsOrders] = useState<AdminPaymentOrderItem[]>([]);
+  const [paymentsSummary, setPaymentsSummary] = useState<AdminPaymentsSummary>({
+    totalRevenueInr: 0,
+    totalBaseAmountInr: 0,
+    totalDiscountGivenInr: 0,
+    paidOrdersCount: 0,
+    todayRevenueInr: 0,
+    thisMonthRevenueInr: 0,
+    activePremiumStudentsCount: 0,
+    freeStudentsCount: 0,
+  });
+  const [paymentsPagination, setPaymentsPagination] = useState<PaginationMeta>({
+    total: 0,
+    page: 1,
+    limit: 25,
+    totalPages: 1,
+  });
+  const [loadingPayments, setLoadingPayments] = useState(false);
+
+  async function fetchPayments(filters?: {
+    search?: string;
+    status?: "ALL" | "PAID" | "PENDING" | "FAILED";
+    classGrade?: string;
+    gateway?: "ALL" | "RAZORPAY" | "SANDBOX";
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+  }) {
+    setLoadingPayments(true);
+    const res = await api.getAdminPaymentOrders({
+      status: filters?.status || "PAID",
+      ...filters,
+      limit: 25,
+    });
+    if (res.success && res.data) {
+      setPaymentsOrders(res.data.orders);
+      setPaymentsSummary(res.data.summary);
+      setPaymentsPagination(res.data.pagination);
+    }
+    setLoadingPayments(false);
+  }
+
+  async function fetchHelpdesk(filters?: {
+    status?: string;
+    userType?: "all" | "registered" | "guest";
+    category?: string;
+    search?: string;
+  }) {
+    setLoadingHelpdesk(true);
+    const res = await api.getAdminHelpdeskTickets(filters);
+    if (res.success && res.data) {
+      setHelpdeskTickets(res.data.tickets);
+      setHelpdeskSummary(res.data.summary);
+    }
+    setLoadingHelpdesk(false);
+  }
+
+  async function fetchPlans() {
+    setLoadingPlans(true);
+    const res = await api.getAdminPlans();
+    if (res.success && res.data?.plans) {
+      setPlansList(res.data.plans);
+    }
+    setLoadingPlans(false);
+  }
+
+  async function fetchPromoCodes() {
+    setLoadingPromoCodes(true);
+    const res = await api.getAdminPromoCodes();
+    if (res.success && res.data?.codes) {
+      setPromoCodesList(res.data.codes);
+    }
+    setLoadingPromoCodes(false);
+  }
+
+  async function fetchReferralProgram() {
+    setLoadingRefProgram(true);
+    const res = await api.getAdminReferralSettings();
+    if (res.success && res.data) {
+      setReferralSettings(res.data.settings);
+      setReferralLedger(res.data.ledger);
+    }
+    setLoadingRefProgram(false);
+  }
 
   useEffect(() => {
     async function init() {
@@ -149,7 +290,16 @@ export default function AdminDashboardPage() {
         return;
       }
       setAdminUser(meRes.data.user);
-      await Promise.all([fetchStudents("", 1, 10), fetchClasses(), fetchActivities()]);
+      await Promise.all([
+        fetchStudents("", 1, 10),
+        fetchClasses(),
+        fetchActivities(),
+        fetchPlans(),
+        fetchPromoCodes(),
+        fetchReferralProgram(),
+        fetchHelpdesk(),
+        fetchPayments({ status: "PAID", page: 1 }),
+      ]);
       setLoading(false);
     }
     init();
@@ -170,7 +320,8 @@ export default function AdminDashboardPage() {
     status = filterStatus,
     classGrade = filterClass,
     startDate = filterStartDate,
-    endDate = filterEndDate
+    endDate = filterEndDate,
+    planTier = filterPlanTier
   ) {
     setStudentsLoading(true);
     const res = await api.getStudents({
@@ -178,12 +329,16 @@ export default function AdminDashboardPage() {
       page,
       limit,
       status,
+      planTier,
       classGrade,
       startDate,
       endDate,
     });
     if (res.success && res.data?.students) {
       setStudents(res.data.students);
+      if (res.data.summary) {
+        setStudentSummary(res.data.summary);
+      }
       if (res.data.pagination) {
         setStudentTotal(res.data.pagination.total);
         setStudentTotalPages(res.data.pagination.totalPages);
@@ -199,42 +354,58 @@ export default function AdminDashboardPage() {
 
   async function handleRefresh() {
     setIsRefreshing(true);
-    await fetchStudents(search, studentPage, studentLimit, filterStatus, filterClass, filterStartDate, filterEndDate);
+    await fetchStudents(
+      search,
+      studentPage,
+      studentLimit,
+      filterStatus,
+      filterClass,
+      filterStartDate,
+      filterEndDate,
+      filterPlanTier
+    );
     setTimeout(() => setIsRefreshing(false), 400);
   }
 
   function handleStatusChange(newStatus: "all" | "active" | "inactive") {
     setFilterStatus(newStatus);
     setStudentPage(1);
-    fetchStudents(search, 1, studentLimit, newStatus, filterClass, filterStartDate, filterEndDate);
+    fetchStudents(search, 1, studentLimit, newStatus, filterClass, filterStartDate, filterEndDate, filterPlanTier);
+  }
+
+  function handlePlanTierChange(newTier: "all" | "premium" | "free" | "expired") {
+    setFilterPlanTier(newTier);
+    setStudentPage(1);
+    fetchStudents(search, 1, studentLimit, filterStatus, filterClass, filterStartDate, filterEndDate, newTier);
   }
 
   function handleClassFilterChange(newClass: string) {
     setFilterClass(newClass);
     setStudentPage(1);
-    fetchStudents(search, 1, studentLimit, filterStatus, newClass, filterStartDate, filterEndDate);
+    fetchStudents(search, 1, studentLimit, filterStatus, newClass, filterStartDate, filterEndDate, filterPlanTier);
   }
 
   function handleStartDateChange(date: string) {
     setFilterStartDate(date);
     setStudentPage(1);
-    fetchStudents(search, 1, studentLimit, filterStatus, filterClass, date, filterEndDate);
+    fetchStudents(search, 1, studentLimit, filterStatus, filterClass, date, filterEndDate, filterPlanTier);
   }
 
   function handleEndDateChange(date: string) {
     setFilterEndDate(date);
     setStudentPage(1);
-    fetchStudents(search, 1, studentLimit, filterStatus, filterClass, filterStartDate, date);
+    fetchStudents(search, 1, studentLimit, filterStatus, filterClass, filterStartDate, date, filterPlanTier);
   }
 
   function handleClearFilters() {
     setSearch("");
     setFilterStatus("all");
+    setFilterPlanTier("all");
     setFilterClass("all");
     setFilterStartDate("");
     setFilterEndDate("");
     setStudentPage(1);
-    fetchStudents("", 1, studentLimit, "all", "all", "", "");
+    fetchStudents("", 1, studentLimit, "all", "all", "", "", "all");
   }
 
   async function fetchClasses() {
@@ -521,8 +692,42 @@ export default function AdminDashboardPage() {
     setUploadClassId(classesList.length > 0 ? classesList[0].id : "");
     setUploadTitle("");
     setUploadCheckpoints(3);
+    setUploadDemoCheckpoints(1);
     setUploadFile(null);
     setShowUploadModal(true);
+  }
+
+  function openEditActivityConfigModal(act: AdminActivityItem) {
+    setEditingActivityConfig(act);
+    setEditActTitle(act.title);
+    setEditActTotalCp(act.totalCheckpoints);
+    setEditActDemoCp(act.demoCheckpointsCount ?? 1);
+  }
+
+  async function handleUpdateActivityConfig(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingActivityConfig) return;
+    setSubmitting(true);
+    const res = await api.updateActivityConfig(editingActivityConfig.id, {
+      title: editActTitle.trim(),
+      totalCheckpoints: Number(editActTotalCp),
+      demoCheckpointsCount: Number(editActDemoCp),
+    });
+    setSubmitting(false);
+
+    if (res.success) {
+      setActionMessage({
+        type: "success",
+        text: `Demo & Premium stages updated for ${editingActivityConfig.className}! (${editActDemoCp} Demo / ${Math.max(0, editActTotalCp - editActDemoCp)} Premium)`,
+      });
+      setEditingActivityConfig(null);
+      await fetchActivities();
+    } else {
+      setActionMessage({
+        type: "error",
+        text: res.error?.message || "Failed to update activity configuration",
+      });
+    }
   }
 
   async function handleUploadActivity(e: React.FormEvent) {
@@ -538,6 +743,7 @@ export default function AdminDashboardPage() {
     formData.append("classId", String(uploadClassId));
     formData.append("title", uploadTitle.trim() || `Class Activity Journey`);
     formData.append("totalCheckpoints", String(uploadCheckpoints));
+    formData.append("demoCheckpointsCount", String(uploadDemoCheckpoints));
 
     const res = await api.uploadActivityPackage(formData);
     setUploading(false);
@@ -751,19 +957,148 @@ export default function AdminDashboardPage() {
 
             <div>
               <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-                Upcoming Modules
+                Monetization &amp; Growth
               </p>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between px-3.5 py-2 rounded-xl text-xs text-slate-400 bg-slate-50/70 border border-dashed border-slate-200">
+              <nav className="space-y-1">
+                <button
+                  onClick={() => {
+                    setActiveTab("plans");
+                    setIsMobileSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === "plans"
+                      ? "bg-indigo-50 text-indigo-700 border border-indigo-100 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  }`}
+                >
                   <div className="flex items-center gap-2.5">
-                    <CreditCard className="w-4 h-4 text-slate-400" />
-                    <span>Subscriptions</span>
+                    <CreditCard className={`w-4 h-4 ${activeTab === "plans" ? "text-indigo-600" : "text-slate-400"}`} />
+                    <span>Class Subscriptions</span>
                   </div>
-                  <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded">
-                    Stage 3
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      activeTab === "plans"
+                        ? "bg-indigo-600 text-white"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {plansList.length}
                   </span>
-                </div>
-              </div>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveTab("payments");
+                    setIsMobileSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === "payments"
+                      ? "bg-indigo-50 text-indigo-700 border border-indigo-100 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <IndianRupee className={`w-4 h-4 ${activeTab === "payments" ? "text-indigo-600" : "text-slate-400"}`} />
+                    <span>Payments &amp; Revenue</span>
+                  </div>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      activeTab === "payments"
+                        ? "bg-indigo-600 text-white"
+                        : "bg-emerald-50 text-emerald-700"
+                    }`}
+                  >
+                    {paymentsSummary.paidOrdersCount}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveTab("referrals");
+                    setIsMobileSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === "referrals"
+                      ? "bg-indigo-50 text-indigo-700 border border-indigo-100 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Gift className={`w-4 h-4 ${activeTab === "referrals" ? "text-indigo-600" : "text-slate-400"}`} />
+                    <span>Coupon Codes</span>
+                  </div>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      activeTab === "referrals"
+                        ? "bg-indigo-600 text-white"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {promoCodesList.length}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveTab("referralProgram");
+                    setIsMobileSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === "referralProgram"
+                      ? "bg-indigo-50 text-indigo-700 border border-indigo-100 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Sparkles className={`w-4 h-4 ${activeTab === "referralProgram" ? "text-indigo-600" : "text-slate-400"}`} />
+                    <span>Refer &amp; Earn Rules</span>
+                  </div>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      activeTab === "referralProgram"
+                        ? "bg-indigo-600 text-white"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {referralLedger.length}
+                  </span>
+                </button>
+              </nav>
+            </div>
+
+            <div>
+              <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                Support &amp; Operations
+              </p>
+              <nav className="space-y-1">
+                <button
+                  onClick={() => {
+                    setActiveTab("helpdesk");
+                    setIsMobileSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === "helpdesk"
+                      ? "bg-indigo-50 text-indigo-700 border border-indigo-100 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <LifeBuoy className={`w-4 h-4 ${activeTab === "helpdesk" ? "text-indigo-600" : "text-slate-400"}`} />
+                    <span>Helpdesk Queue</span>
+                  </div>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      helpdeskSummary.lateCriticalCount > 0
+                        ? "bg-rose-600 text-white animate-pulse"
+                        : activeTab === "helpdesk"
+                        ? "bg-indigo-600 text-white"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {helpdeskSummary.totalOpen}
+                  </span>
+                </button>
+              </nav>
             </div>
           </div>
         </div>
@@ -809,15 +1144,18 @@ export default function AdminDashboardPage() {
                   ? "Students & Device Controls"
                   : activeTab === "classes"
                   ? "Classes & Dropdown Order"
-                  : "Class Game Packages & Journeys"}
+                  : activeTab === "activities"
+                  ? "Class Game Packages & Demo Limits"
+                  : activeTab === "plans"
+                  ? "Class-Wise Subscription Pricing"
+                  : activeTab === "payments"
+                  ? "Payments & Revenue Ledger"
+                  : activeTab === "referrals"
+                  ? "Coupon Codes & Expiration Control"
+                  : activeTab === "referralProgram"
+                  ? "Student Refer & Earn Rules"
+                  : "Helpdesk & Priority Support Queue"}
               </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Stage 2 Journey Engine Active</span>
             </div>
           </div>
         </header>
@@ -898,17 +1236,18 @@ export default function AdminDashboardPage() {
                     type="button"
                     onClick={() => setShowFilterBar(!showFilterBar)}
                     className={`px-3 py-2 rounded-xl border text-xs font-semibold transition-colors shadow-xs cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                      filterStatus !== "all" || filterClass !== "all" || filterStartDate || filterEndDate
+                      filterStatus !== "all" || filterPlanTier !== "all" || filterClass !== "all" || filterStartDate || filterEndDate
                         ? "bg-indigo-50 border-indigo-200 text-indigo-700"
                         : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
                     }`}
                   >
                     <Filter className="w-3.5 h-3.5" />
                     <span>Filters</span>
-                    {(filterStatus !== "all" || filterClass !== "all" || filterStartDate || filterEndDate) && (
+                    {(filterStatus !== "all" || filterPlanTier !== "all" || filterClass !== "all" || filterStartDate || filterEndDate) && (
                       <span className="w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] flex items-center justify-center font-bold">
                         {[
                           filterStatus !== "all",
+                          filterPlanTier !== "all",
                           filterClass !== "all",
                           Boolean(filterStartDate),
                           Boolean(filterEndDate),
@@ -917,6 +1256,75 @@ export default function AdminDashboardPage() {
                     )}
                   </button>
                 </div>
+              </div>
+
+              {/* Free vs Premium Tier Summary Pills */}
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => handlePlanTierChange("all")}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                    filterPlanTier === "all"
+                      ? "bg-slate-900 text-white border-slate-900 shadow-xs"
+                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>All Students</span>
+                  <span className="px-1.5 py-0.5 rounded-md text-[10px] bg-black/10 font-bold">
+                    {studentSummary.totalStudents}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handlePlanTierChange("premium")}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                    filterPlanTier === "premium"
+                      ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                      : "bg-emerald-50/70 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
+                  }`}
+                >
+                  <Crown className="w-3.5 h-3.5" />
+                  <span>Premium Users</span>
+                  <span className="px-1.5 py-0.5 rounded-md text-[10px] bg-black/10 font-bold">
+                    {studentSummary.premiumCount}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handlePlanTierChange("free")}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                    filterPlanTier === "free"
+                      ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                      : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Free Demo Tier</span>
+                  <span className="px-1.5 py-0.5 rounded-md text-[10px] bg-black/10 font-bold">
+                    {studentSummary.freeCount}
+                  </span>
+                </button>
+
+                {studentSummary.expiredCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handlePlanTierChange("expired")}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                      filterPlanTier === "expired"
+                        ? "bg-amber-600 text-white border-amber-600 shadow-xs"
+                        : "bg-amber-50/70 text-amber-800 border-amber-200 hover:bg-amber-100"
+                    }`}
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Expired Plan</span>
+                    <span className="px-1.5 py-0.5 rounded-md text-[10px] bg-black/10 font-bold">
+                      {studentSummary.expiredCount}
+                    </span>
+                  </button>
+                )}
               </div>
 
               {/* Filters Toolbar Card */}
@@ -934,6 +1342,21 @@ export default function AdminDashboardPage() {
                         <option value="all">All Accounts (Active &amp; Inactive)</option>
                         <option value="active">Active Only</option>
                         <option value="inactive">Deactivated Only</option>
+                      </select>
+                    </div>
+
+                    {/* Plan Tier Filter */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-semibold text-slate-600">Plan:</span>
+                      <select
+                        value={filterPlanTier}
+                        onChange={(e) => handlePlanTierChange(e.target.value as any)}
+                        className="bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 font-medium focus:outline-none focus:border-indigo-600 cursor-pointer"
+                      >
+                        <option value="all">All Tiers (Free &amp; Premium)</option>
+                        <option value="premium">Premium Only</option>
+                        <option value="free">Free Tier Only</option>
+                        <option value="expired">Expired Only</option>
                       </select>
                     </div>
 
@@ -977,7 +1400,7 @@ export default function AdminDashboardPage() {
                     </div>
 
                     {/* Clear Filters Button */}
-                    {(filterStatus !== "all" || filterClass !== "all" || filterStartDate || filterEndDate || search) && (
+                    {(filterStatus !== "all" || filterPlanTier !== "all" || filterClass !== "all" || filterStartDate || filterEndDate || search) && (
                       <button
                         type="button"
                         onClick={handleClearFilters}
@@ -999,7 +1422,8 @@ export default function AdminDashboardPage() {
                       <tr>
                         <th className="py-3.5 px-4 font-semibold">Student Details</th>
                         <th className="py-3.5 px-4 font-semibold">Mobile Number</th>
-                        <th className="py-3.5 px-4 font-semibold">Class, School, City &amp; State</th>
+                        <th className="py-3.5 px-4 font-semibold">Class, School &amp; City</th>
+                        <th className="py-3.5 px-4 font-semibold">Plan &amp; Payment Breakdown</th>
                         <th className="py-3.5 px-4 font-semibold">Active Device Binding</th>
                         <th className="py-3.5 px-4 font-semibold">Status</th>
                         <th className="py-3.5 px-4 text-right font-semibold">Actions</th>
@@ -1008,7 +1432,7 @@ export default function AdminDashboardPage() {
                     <tbody className="divide-y divide-slate-100">
                       {studentsLoading ? (
                         <tr>
-                          <td colSpan={6} className="py-12 text-center text-slate-400">
+                          <td colSpan={7} className="py-12 text-center text-slate-400">
                             <div className="flex items-center justify-center gap-2">
                               <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
                               <span>Loading students...</span>
@@ -1017,13 +1441,17 @@ export default function AdminDashboardPage() {
                         </tr>
                       ) : students.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-10 text-center text-slate-500">
+                          <td colSpan={7} className="py-10 text-center text-slate-500">
                             No students found matching your criteria.
                           </td>
                         </tr>
                       ) : (
                         students.map((student, index) => {
                           const isNearBottom = index >= Math.max(1, students.length - 2);
+                          const paidOrder = student.latestPaidOrder;
+                          const totalSaved = paidOrder
+                            ? paidOrder.discountAmount + paidOrder.walletDiscountUsed
+                            : 0;
                           return (
                           <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
                             {/* Name & Email */}
@@ -1048,6 +1476,55 @@ export default function AdminDashboardPage() {
                                   {[student.city, student.state].filter(Boolean).join(", ")}
                                 </div>
                               )}
+                            </td>
+
+                            {/* Plan Tier & Pricing Breakdown */}
+                            <td className="py-4 px-4">
+                              <div className="space-y-1">
+                                {student.planStatus === "PREMIUM" ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold uppercase tracking-wider">
+                                    <Crown className="w-3 h-3" />
+                                    Premium
+                                  </span>
+                                ) : student.planStatus === "EXPIRED" ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold uppercase tracking-wider">
+                                    <Clock className="w-3 h-3" />
+                                    Expired
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-bold uppercase tracking-wider">
+                                    Free Demo
+                                  </span>
+                                )}
+
+                                {paidOrder ? (
+                                  <div className="text-[11px] leading-snug">
+                                    <div className="text-slate-500">
+                                      Class MRP:{" "}
+                                      <span className="font-semibold text-slate-700">
+                                        ₹{paidOrder.baseAmount.toLocaleString("en-IN")}
+                                      </span>
+                                    </div>
+                                    {totalSaved > 0 && (
+                                      <div className="text-amber-700 text-[10px] font-medium">
+                                        Disc: -₹{totalSaved.toLocaleString("en-IN")}
+                                        {paidOrder.referralCodeUsed ? ` (${paidOrder.referralCodeUsed})` : ""}
+                                      </div>
+                                    )}
+                                    <div className="font-bold text-emerald-700">
+                                      Paid: ₹{paidOrder.finalAmount.toLocaleString("en-IN")}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="text-[11px] text-slate-500">
+                                    {student.classPlanPrice !== null && student.classPlanPrice !== undefined ? (
+                                      <>Class Price: <strong className="text-slate-700">₹{student.classPlanPrice.toLocaleString("en-IN")}</strong></>
+                                    ) : (
+                                      <span className="italic text-slate-400">No class plan set</span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             </td>
 
                             {/* Device Status */}
@@ -1533,9 +2010,17 @@ export default function AdminDashboardPage() {
 
                             {/* Checkpoints */}
                             <td className="py-4 px-4">
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                <span>{act.totalCheckpoints} Progressive Stages</span>
-                              </span>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                                  Demo: {act.demoCheckpointsCount ?? 1}
+                                </span>
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+                                  Premium: {Math.max(0, act.totalCheckpoints - (act.demoCheckpointsCount ?? 1))}
+                                </span>
+                                <span className="text-[10px] text-slate-400">
+                                  ({act.totalCheckpoints} Total)
+                                </span>
+                              </div>
                             </td>
 
                             {/* Version */}
@@ -1547,6 +2032,14 @@ export default function AdminDashboardPage() {
                             {/* Actions */}
                             <td className="py-4 px-4 text-right">
                               <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => openEditActivityConfigModal(act)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 cursor-pointer text-xs font-semibold transition-colors"
+                                  title="Configure Demo vs Premium Stages"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                  <span>Demo Config</span>
+                                </button>
                                 <button
                                   onClick={() => setPreviewActivity(act)}
                                   className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 cursor-pointer text-xs font-semibold transition-colors"
@@ -1641,8 +2134,138 @@ export default function AdminDashboardPage() {
               </div>
             </div>
           )}
+
+          {/* TAB 4: CLASS-WISE SUBSCRIPTION PLANS */}
+          {activeTab === "plans" && (
+            <AdminPlansTab
+              plansList={plansList}
+              classesList={classesList}
+              loading={loadingPlans}
+              onRefresh={fetchPlans}
+              onActionMessage={setActionMessage}
+            />
+          )}
+
+          {/* TAB 4B: PAYMENTS & REVENUE LEDGER */}
+          {activeTab === "payments" && (
+            <AdminPaymentsTab
+              orders={paymentsOrders}
+              summary={paymentsSummary}
+              pagination={paymentsPagination}
+              classesList={classesList}
+              loading={loadingPayments}
+              onFilterChange={fetchPayments}
+            />
+          )}
+
+          {/* TAB 5: ADMIN COUPON CODES & EXPIRATION */}
+          {activeTab === "referrals" && (
+            <AdminReferralsTab
+              codesList={promoCodesList}
+              loading={loadingPromoCodes}
+              onRefresh={fetchPromoCodes}
+              onActionMessage={setActionMessage}
+            />
+          )}
+
+          {/* TAB 6: REFER & EARN PROGRAM RULES & LEDGER */}
+          {activeTab === "referralProgram" && (
+            <AdminReferralProgramTab
+              settings={referralSettings}
+              ledger={referralLedger}
+              loading={loadingRefProgram}
+              onRefresh={fetchReferralProgram}
+              onActionMessage={setActionMessage}
+            />
+          )}
+
+          {/* TAB 7: HELPDESK PRIORITY QUEUE */}
+          {activeTab === "helpdesk" && (
+            <AdminHelpdeskTab
+              tickets={helpdeskTickets}
+              summary={helpdeskSummary}
+              loading={loadingHelpdesk}
+              onRefresh={fetchHelpdesk}
+              onActionMessage={setActionMessage}
+            />
+          )}
         </main>
       </div>
+
+      {/* Edit Activity Demo vs Premium Config Modal */}
+      {editingActivityConfig && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-slate-900 mb-1">
+              Edit Demo &amp; Premium Settings
+            </h3>
+            <p className="text-xs text-slate-500 mb-4">
+              Configure how many stages in <strong>{editingActivityConfig.className}</strong> are Free Demo vs Paid Premium.
+            </p>
+
+            <form onSubmit={handleUpdateActivityConfig} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Journey Title</label>
+                <input
+                  type="text"
+                  required
+                  value={editActTitle}
+                  onChange={(e) => setEditActTitle(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs focus:outline-none focus:border-indigo-600"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Total Stages</label>
+                  <input
+                    type="number"
+                    min={1}
+                    required
+                    value={editActTotalCp}
+                    onChange={(e) => setEditActTotalCp(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 font-bold text-xs focus:outline-none focus:border-indigo-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Free Demo Stages</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={editActTotalCp}
+                    required
+                    value={editActDemoCp}
+                    onChange={(e) => setEditActDemoCp(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 font-bold text-xs focus:outline-none focus:border-indigo-600"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-100 text-xs text-indigo-800">
+                Summary: Stages <strong>1 to {editActDemoCp}</strong> are Free Demo. Stages{" "}
+                <strong>{editActDemoCp + 1} to {editActTotalCp}</strong> ({Math.max(0, editActTotalCp - editActDemoCp)} stages) require Subscription.
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingActivityConfig(null)}
+                  className="px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer disabled:opacity-50"
+                >
+                  {submitting ? "Updating..." : "Save Configuration"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Upload Journey Package Modal */}
       {showUploadModal && (
@@ -1684,17 +2307,34 @@ export default function AdminDashboardPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Total Checkpoints</label>
-                <input
-                  type="number"
-                  min={1}
-                  required
-                  value={uploadCheckpoints}
-                  onChange={(e) => setUploadCheckpoints(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs focus:outline-none focus:border-indigo-600"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Total Stages</label>
+                  <input
+                    type="number"
+                    min={1}
+                    required
+                    value={uploadCheckpoints}
+                    onChange={(e) => setUploadCheckpoints(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs focus:outline-none focus:border-indigo-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Free Demo Stages</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={uploadCheckpoints}
+                    required
+                    value={uploadDemoCheckpoints}
+                    onChange={(e) => setUploadDemoCheckpoints(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs focus:outline-none focus:border-indigo-600"
+                  />
+                </div>
               </div>
+              <p className="text-[10px] text-slate-500 -mt-2">
+                Remaining <strong>{Math.max(0, uploadCheckpoints - uploadDemoCheckpoints)}</strong> stages will require paid subscription.
+              </p>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">ZIP Package File</label>
@@ -2403,6 +3043,107 @@ export default function AdminDashboardPage() {
                         </table>
                       </div>
                     </div>
+                  )}
+                </div>
+
+                {/* Subscription & Payment History */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                      <IndianRupee className="w-3.5 h-3.5 text-indigo-600" />
+                      Subscription &amp; Payment History
+                    </span>
+                    {viewDetailsData?.planStatus === "PREMIUM" ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold uppercase">
+                        <Crown className="w-3 h-3" />
+                        Premium
+                      </span>
+                    ) : viewDetailsData?.planStatus === "EXPIRED" ? (
+                      <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold uppercase">
+                        Expired
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-bold uppercase">
+                        Free Demo Tier
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-[11px] bg-white border border-slate-200 rounded-lg p-2.5">
+                    <div>
+                      <span className="text-slate-400 block">Current Class Plan Price</span>
+                      <strong className="text-slate-900">
+                        {viewDetailsData?.classPlanPrice !== null && viewDetailsData?.classPlanPrice !== undefined
+                          ? `₹${viewDetailsData.classPlanPrice.toLocaleString("en-IN")} (${viewDetailsData.classPlanTitle || "Plan"})`
+                          : "Not Configured"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block">Active Subscription Expiry</span>
+                      <strong className="text-slate-900">
+                        {viewDetailsData?.activeSubscription?.expiresAt
+                          ? new Date(viewDetailsData.activeSubscription.expiresAt).toLocaleDateString("en-IN", {
+                              dateStyle: "medium",
+                            })
+                          : "No Active Subscription"}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {viewDetailsData?.paymentOrders && viewDetailsData.paymentOrders.length > 0 ? (
+                    <div className="overflow-x-auto pt-1">
+                      <table className="w-full text-left text-[11px]">
+                        <thead>
+                          <tr className="text-slate-400 border-b border-slate-200">
+                            <th className="pb-1.5 font-medium">Date</th>
+                            <th className="pb-1.5 font-medium">Plan &amp; MRP</th>
+                            <th className="pb-1.5 font-medium">Discount</th>
+                            <th className="pb-1.5 font-medium">Paid</th>
+                            <th className="pb-1.5 font-medium">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-slate-700">
+                          {viewDetailsData.paymentOrders.map((ord) => {
+                            const disc = ord.discountAmount + ord.walletDiscountUsed;
+                            return (
+                              <tr key={ord.id}>
+                                <td className="py-1.5 whitespace-nowrap">
+                                  {new Date(ord.createdAt).toLocaleDateString("en-IN", { dateStyle: "short" })}
+                                </td>
+                                <td className="py-1.5">
+                                  {ord.planTitle || "Plan"} (₹{ord.baseAmount})
+                                </td>
+                                <td className="py-1.5">
+                                  {disc > 0 ? (
+                                    <span className="text-amber-700 font-medium">
+                                      -₹{disc} {ord.referralCodeUsed ? `(${ord.referralCodeUsed})` : ""}
+                                    </span>
+                                  ) : (
+                                    "—"
+                                  )}
+                                </td>
+                                <td className="py-1.5 font-bold text-slate-900">₹{ord.finalAmount}</td>
+                                <td className="py-1.5">
+                                  <span
+                                    className={`font-bold ${
+                                      ord.status === "PAID"
+                                        ? "text-emerald-600"
+                                        : ord.status === "PENDING"
+                                        ? "text-amber-600"
+                                        : "text-rose-600"
+                                    }`}
+                                  >
+                                    {ord.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-slate-400 italic">No payment transactions recorded yet.</p>
                   )}
                 </div>
               </div>

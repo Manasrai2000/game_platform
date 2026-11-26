@@ -2,6 +2,7 @@ import {
   mysqlTable,
   bigint,
   varchar,
+  int,
   mysqlEnum,
   boolean,
   datetime,
@@ -27,6 +28,9 @@ export const users = mysqlTable(
     state: varchar("state", { length: 100 }).notNull().default(""),
     role: mysqlEnum("role", ["STUDENT", "ADMIN"]).notNull().default("STUDENT"),
     is_active: boolean("is_active").notNull().default(true),
+    referral_code: varchar("referral_code", { length: 32 }),
+    referred_by_code: varchar("referred_by_code", { length: 32 }),
+    reward_wallet_balance: int("reward_wallet_balance").notNull().default(0),
     email_verified_at: datetime("email_verified_at", { fsp: 3 }),
     mfa_secret_enc: varchar("mfa_secret_enc", { length: 255 }),
     created_at: datetime("created_at", { fsp: 3 })
@@ -38,6 +42,7 @@ export const users = mysqlTable(
   },
   (table) => [
     uniqueIndex("uq_users_email").on(table.email),
+    uniqueIndex("uq_users_referral_code").on(table.referral_code),
     index("idx_users_mobile").on(table.mobile_number),
     index("idx_users_role_active").on(table.role, table.is_active),
   ]

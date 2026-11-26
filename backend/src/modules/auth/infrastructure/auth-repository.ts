@@ -29,6 +29,7 @@ export class AuthRepository {
     passwordHash: string;
     rawPassword?: string;
     role?: "STUDENT" | "ADMIN";
+    referredByCode?: string;
   }): Promise<User> {
     const [result] = await db.insert(users).values({
       full_name: data.fullName,
@@ -41,11 +42,21 @@ export class AuthRepository {
       password_hash: data.passwordHash,
       raw_password: data.rawPassword || null,
       role: data.role || "STUDENT",
+      referred_by_code: data.referredByCode ? data.referredByCode.trim().toUpperCase() : null,
       is_active: true,
       email_verified_at: new Date(),
     });
 
-    const user = await this.findById(Number(result.insertId));
+    const newId = Number(result.insertId);
+    const cleanPrefix = (data.fullName || "STU").replace(/[^a-zA-Z]/g, "").toUpperCase().slice(0, 5) || "STU";
+    const generatedRefCode = `${cleanPrefix}${100 + newId}`;
+
+    await db
+      .update(users)
+      .set({ referral_code: generatedRefCode })
+      .where(eq(users.id, newId));
+
+    const user = await this.findById(newId);
     if (!user) throw new Error("User creation failed to return entity");
     return user;
   }

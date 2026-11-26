@@ -5,3 +5,5 @@ export * from "./audit-logs";
 export * from "./classes";
 export * from "./activities";
 export * from "./email-verifications";
+export * from "./monetization";
+export * from "./helpdesk";

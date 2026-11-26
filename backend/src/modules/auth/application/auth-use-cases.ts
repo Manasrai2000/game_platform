@@ -11,6 +11,7 @@ import {
 } from "../../../core/errors/app-error";
 import { RegisterInput, LoginInput, SendOtpInput, UpdateProfileInput } from "../domain/user";
 import { emailService } from "../../../core/email/email-service";
+import { referralsService } from "../../referrals/referrals-service";
 
 export interface AuthSuccessResult {
   user: {
@@ -126,7 +127,11 @@ export class AuthUseCases {
       passwordHash,
       rawPassword: input.password,
       role: "STUDENT",
+      referredByCode: input.referralCode,
     });
+
+    // 4b. Attribute registration referral (tracks as REGISTERED or REWARDED per admin rules)
+    await referralsService.attributeRegistrationReferral(user.id, input.referralCode);
 
     // 4. Bind the first device (First-login binding)
     const deviceResult = await deviceLockService.verifyOrBind({

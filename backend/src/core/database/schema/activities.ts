@@ -31,6 +31,7 @@ export const class_activities = mysqlTable(
     storage_path: varchar("storage_path", { length: 255 }).notNull(),
     entry_file: varchar("entry_file", { length: 255 }).notNull().default("index.html"),
     total_checkpoints: int("total_checkpoints").notNull().default(3),
+    demo_checkpoints_count: int("demo_checkpoints_count").notNull().default(1),
     is_active: boolean("is_active").notNull().default(true),
     created_at: datetime("created_at", { fsp: 3 })
       .notNull()
